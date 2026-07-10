@@ -1,0 +1,15 @@
+# environments & deps
+.venv/
+node_modules/
+__pycache__/
+.pytest_cache/
+
+# secrets & local artifacts — never commit
+.env
+*.db
+*.log
+
+# eval/benchmark scratch output
+benchmark/_bench.json
+eval/report.json
+eval/REPORT.md

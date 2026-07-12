@@ -30,6 +30,27 @@ Rubric ids are from `eval/rubric.json` (auto = scored by `eval/eval.py`).
 Live tests are the executable version of the manual `llm_prompt_quality` (20)
 rubric row.
 
+## Python: tests/test_llm_prompt.py (fast — no network, no key)
+
+| Test | Requirement / guide section |
+|---|---|
+| `test_hindi_system_prompt_contains_style_block` | hi-IN prompt carries the style rules distilled from `docs/hindi-style-guide.md` |
+| `test_messages_end_with_raw_user_text` | bare input in — no wrapping or preamble around the user text |
+| `test_few_shot_alternates_user_assistant_pairs` | few-shot sent as real message turns |
+| `test_few_shot_examples_follow_guide_conventions` | examples obey guide §5/§8 (no Devanagari digits, no western period) |
+| `test_unknown_target_gets_generic_prompt_no_few_shot` | open-closed: new language = data only |
+| `test_provider_sdk_not_imported_at_module_import_time` | mocked suite/CI never needs the SDK or a key |
+
+## Python: tests/test_user_outcomes.py::TestLiveStyle (live — style adherence)
+
+| Test | Guide section |
+|---|---|
+| `test_prose_is_mostly_devanagari_and_ends_with_danda` | §4 script, §5 danda-for-prose |
+| `test_no_devanagari_digits_and_currency_preserved` | §5 Western digits, $ never converted |
+| `test_brand_name_stays_latin` | §4 brands never transliterated |
+| `test_ui_label_uses_canonical_lexicon_no_terminal_punctuation` | §6 lexicon, §5 bare UI labels |
+| `test_imperative_uses_karein_register` | §2 करें register, never कीजिए/करो |
+
 ## Python: tests/test_integration.py
 
 | Test | Requirement |

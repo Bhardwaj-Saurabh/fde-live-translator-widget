@@ -8,8 +8,8 @@
  *   - expose /health and /stats
  *   - log every request
  *
- * It is ~90% done. Find the two `TODO (YOU)` blocks and implement them.
- * Everything else works out of the box.
+ * Fully implemented: request-ID tracing middleware, structured logging
+ * (stdout + gateway.log), and the proxy to the Python AI service.
  *
  * Run:  npm install && npm start      (needs Node 18+ for global fetch)
  */
@@ -27,6 +27,14 @@ const startedAt = Date.now();
 
 // --- middleware ----------------------------------------------------------
 app.use(cors()); // dev: allow every origin so the widget works on any page
+app.use((req, res, next) => {
+  // Chrome Private Network Access: public https pages fetching localhost
+  // send a preflight that must be explicitly allowed.
+  if (req.headers["access-control-request-private-network"]) {
+    res.setHeader("Access-Control-Allow-Private-Network", "true");
+  }
+  next();
+});
 app.use(express.json({ limit: "1mb" }));
 
 const crypto = require("node:crypto");

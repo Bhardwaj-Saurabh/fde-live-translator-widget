@@ -234,6 +234,21 @@
 
   // ---- backend I/O --------------------------------------------------------
   async function postJSON(path, body) {
+    // Inside the extension, relay through the background worker: fetches
+    // from the page context are blocked on strict sites (page CSP, CORS,
+    // Chrome private-network rules); extension-context fetches are not.
+    if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id) {
+      const resp = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ type: "FDE_FETCH", path, body }, (r) => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else resolve(r);
+        });
+      });
+      if (!resp) throw new Error("no response from extension background worker");
+      if (resp.status === 501) throw new NotImplemented(path);
+      if (!resp.ok) throw new Error(resp.error || "HTTP " + resp.status);
+      return resp.data;
+    }
     const res = await fetch(CONFIG.API_URL + path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

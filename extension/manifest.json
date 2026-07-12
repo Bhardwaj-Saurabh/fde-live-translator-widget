@@ -5,6 +5,7 @@
   "description": "Assignment 1 widget: live, on-demand English→Hindi translation on any page.",
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["http://localhost:8787/*", "<all_urls>"],
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],

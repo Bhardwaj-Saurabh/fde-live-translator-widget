@@ -15,6 +15,7 @@ expected until they're built. A failure ending in `NotImplementedError` means
 | `tests/test_user_outcomes.py` | widget-user perspective | LLM & prompt-quality rubric rows |
 | `tests/test_integration.py` | wiring + restart persistence | caching-correctness rubric row |
 | `tests/test_edge_cases.py` | failure modes & odd input | fail-loud / automatic-fail rules |
+| `tests/test_llm_prompt.py` | prompt assembly (pure, no network) | style-guide → prompt contract |
 | `backend/gateway-node/test/` | gateway contract, 400/502, tracing | service-separation + logging rows |
 
 ## Step 0 — Preconditions

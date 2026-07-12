@@ -6,8 +6,9 @@ A small FastAPI service that translates English → Hindi with:
   - a two-tier cache       (lib/cache.py)  — memory + SQLite
   - structured logging     (lib/logger.py) — provided, wired for you
 
-The Node gateway forwards the browser's requests here. You implement the
-TODOs so the widget lights up. Run:
+The Node gateway forwards the browser's requests here. Fully implemented:
+cache→LLM→cache flow with single-flight dedup, bounded batch concurrency,
+and request-ID logging. Run:
 
     python -m venv .venv && source .venv/bin/activate
     pip install -r requirements.txt
@@ -18,22 +19,33 @@ import asyncio
 import os
 import time
 
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
 from lib.cache import TwoTierCache
-from lib.llm import translate_text
+from lib.llm import MODEL_DEFAULT as MODEL, translate_text
 from lib.logger import get_logger
 
 load_dotenv()
 
-MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
 DB_PATH = os.getenv("TRANSLATION_DB_PATH", "translations.db")
+BATCH_CONCURRENCY = int(os.getenv("BATCH_CONCURRENCY", "8"))
 
-app = FastAPI(title="FDE Live Translate — AI Service")
 log = get_logger("ai-service")
 cache = TwoTierCache(DB_PATH)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    await cache.init()
+    log.info("ai_service_started", extra={"model": MODEL, "db": DB_PATH})
+    yield
+
+
+app = FastAPI(title="FDE Live Translate — AI Service", lifespan=lifespan)
 
 # request/response shapes ----------------------------------------------------
 class TranslateIn(BaseModel):
@@ -43,12 +55,6 @@ class TranslateIn(BaseModel):
 class BatchIn(BaseModel):
     texts: list[str]
     target: str = "hi-IN"
-
-
-@app.on_event("startup")
-async def startup():
-    await cache.init()
-    log.info("ai_service_started", extra={"model": MODEL, "db": DB_PATH})
 
 
 # --- core: translate one string --------------------------------------------
@@ -111,9 +117,16 @@ async def translate(body: TranslateIn, request: Request):
 @app.post("/translate/batch")
 async def translate_batch(body: BatchIn, request: Request):
     t0 = time.perf_counter()
-    results = []
-    for t in body.texts:
-        results.append(await translate_one(t, body.target))
+    # Translate concurrently (bounded) — a real page sends 40-string batches,
+    # and sequential LLM calls would take minutes per batch. Single-flight in
+    # translate_one dedupes identical strings within the burst.
+    sem = asyncio.Semaphore(BATCH_CONCURRENCY)
+
+    async def one(t: str) -> dict:
+        async with sem:
+            return await translate_one(t, body.target)
+
+    results = await asyncio.gather(*(one(t) for t in body.texts))
     latency = int((time.perf_counter() - t0) * 1000)
     hits = sum(1 for r in results if r["cached"])
     log.info(

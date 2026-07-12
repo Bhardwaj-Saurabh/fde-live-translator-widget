@@ -35,7 +35,7 @@
 
 ### Sample translations (6–8)
 
-| Original (EN) | Translation (es-MX) | Numbers/prices/codes kept? | OK? |
+| Original (EN) | Translation (hi-IN) | Numbers/prices/codes kept? | OK? |
 |---|---|---|---|
 | {{}} | {{}} | {{}} | {{}} |
 
@@ -44,7 +44,7 @@
 | Dimension | Pass / Partial / Fail | Evidence |
 |---|---|---|
 | Translation accuracy | {{}} | {{}} |
-| Mexican-Spanish register (es-MX) | {{}} | {{}} |
+| Hindi register (hi-IN) | {{}} | {{}} |
 | Numbers / prices / codes preserved | {{}} | {{}} |
 | Page coverage | {{}} | {{}} |
 | Cache effectiveness | {{}} | {{}} |

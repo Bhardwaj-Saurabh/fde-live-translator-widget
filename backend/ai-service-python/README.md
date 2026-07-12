@@ -26,13 +26,13 @@ Then hit it directly to test without the browser:
 ```bash
 curl -s localhost:8000/health
 curl -s localhost:8000/translate -H 'content-type: application/json' \
-  -d '{"text":"Good morning, welcome!","target":"es-MX"}'
+  -d '{"text":"Good morning, welcome!","target":"hi-IN"}'
 # run the same command twice — the second should show "cached": true and a far lower latencyMs
 curl -s localhost:8000/stats
 ```
 
 ## The three things this teaches
 
-1. **LLM call** — a tight, register-specific prompt (Mexican Spanish, not generic Spanish).
+1. **LLM call** — a tight, register-specific prompt (natural Hindi, not romanized Hinglish).
 2. **Caching** — memory + SQLite, keyed by a hash of `(text, target)`. Identical text must never hit the LLM twice. Prove it with `latencyMs` and `/stats`.
 3. **Logging** — one structured line per translation, greppable in `ai-service.log`.

@@ -39,27 +39,27 @@ async def test_special_chars_emoji_html_entities_cache_correctly(client, fake_ll
 
 
 async def test_batch_empty_array_returns_empty_results(client):
-    r = await client.post("/translate/batch", json={"texts": [], "target": "es-MX"})
+    r = await client.post("/translate/batch", json={"texts": [], "target": "hi-IN"})
     assert r.status_code == 200
     assert r.json()["results"] == []
 
 
 async def test_batch_mixed_empty_and_real_content(client, fake_llm):
     r = await client.post(
-        "/translate/batch", json={"texts": ["", "Add to cart", "  "], "target": "es-MX"}
+        "/translate/batch", json={"texts": ["", "Add to cart", "  "], "target": "hi-IN"}
     )
     results = r.json()["results"]
-    assert [item["translated"] for item in results] == ["", "[es-MX] Add to cart", ""]
-    assert fake_llm.calls == [("Add to cart", "es-MX")]
+    assert [item["translated"] for item in results] == ["", "[hi-IN] Add to cart", ""]
+    assert fake_llm.calls == [("Add to cart", "hi-IN")]
 
 
 async def test_missing_text_field_is_4xx(client):
-    r = await client.post("/translate", json={"target": "es-MX"})
+    r = await client.post("/translate", json={"target": "hi-IN"})
     assert 400 <= r.status_code < 500
 
 
 async def test_text_wrong_type_is_4xx(client):
-    r = await client.post("/translate", json={"text": 123, "target": "es-MX"})
+    r = await client.post("/translate", json={"text": 123, "target": "hi-IN"})
     assert 400 <= r.status_code < 500
 
 
@@ -69,15 +69,15 @@ async def test_llm_failure_propagates_never_returns_english(client_no_raise, fak
     fake_llm.fail = RuntimeError("provider down")
     text = "Flash sale ends tonight"
 
-    r = await client_no_raise.post("/translate", json={"text": text, "target": "es-MX"})
+    r = await client_no_raise.post("/translate", json={"text": text, "target": "hi-IN"})
     assert r.status_code >= 500, "LLM failure was swallowed instead of surfacing"
     if r.headers.get("content-type", "").startswith("application/json"):
         assert r.json().get("translated") != text, "silent English fallback — automatic fail"
-    assert await test_cache.get(text, "es-MX") is None, "failed translation was cached"
+    assert await test_cache.get(text, "hi-IN") is None, "failed translation was cached"
 
     # service must recover once the provider is healthy again
     fake_llm.fail = None
-    ok = await client_no_raise.post("/translate", json={"text": text, "target": "es-MX"})
+    ok = await client_no_raise.post("/translate", json={"text": text, "target": "hi-IN"})
     assert ok.status_code == 200
 
 

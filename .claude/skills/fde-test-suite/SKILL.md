@@ -40,7 +40,7 @@ cd backend/gateway-node && npm test
 ```bash
 cd backend/ai-service-python && RUN_LIVE_LLM_TESTS=1 python -m pytest -m live
 ```
-These call the real `lib/llm.py` and are the only true check of es-MX register,
+These call the real `lib/llm.py` and are the only true check of hi-IN register,
 translation-only output, and price/SKU preservation.
 
 ## Step 4 — Report
@@ -58,6 +58,9 @@ dependency order:
   If a test contradicts AGENTS.md, AGENTS.md wins; say so and fix the test to
   match the contract, never to match the code.
 - Mock the LLM by default; any real-API test gets `@pytest.mark.live`.
+- The live style tests (`TestLiveStyle`) assert conventions defined in
+  `docs/hindi-style-guide.md` — update the guide and the prompt in
+  `lib/llm.py` together, and never weaken a style test to make it pass.
 - Every test database uses pytest's `tmp_path` — never the working
   `translations.db`.
 - Never assert on internals of provided dirs (`widget/`, `extension/`, …).

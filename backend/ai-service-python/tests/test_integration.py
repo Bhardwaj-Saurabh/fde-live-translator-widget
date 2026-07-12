@@ -61,7 +61,7 @@ async def test_batch_reports_per_item_cached_flags(client):
     await translate(client, "Home")  # pre-warm one string
 
     r = await client.post(
-        "/translate/batch", json={"texts": ["Home", "Best sellers"], "target": "es-MX"}
+        "/translate/batch", json={"texts": ["Home", "Best sellers"], "target": "hi-IN"}
     )
     flags = [item["cached"] for item in r.json()["results"]]
     assert flags == [True, False], "per-item cached flags wrong or out of order"

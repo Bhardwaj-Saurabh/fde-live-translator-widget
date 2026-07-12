@@ -40,10 +40,10 @@
     },
     {
       "id": "llm_prompt_quality",
-      "label": "LLM & prompt quality (natural Mexican Spanish)",
+      "label": "LLM & prompt quality (natural Hindi)",
       "points": 20,
       "type": "manual",
-      "check": "grader judges the captured sample translations + video: es-MX register, translation only, numbers/prices/codes preserved"
+      "check": "grader judges the captured sample translations + video: hi-IN register, translation only, numbers/prices/codes preserved"
     },
     {
       "id": "deploy_docs",

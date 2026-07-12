@@ -47,7 +47,7 @@ class FakeLLM:
         self.delay: float = 0.0
         self.fail: Exception | None = None
 
-    async def __call__(self, text: str, target: str = "es-MX", model: str = "fake-model") -> str:
+    async def __call__(self, text: str, target: str = "hi-IN", model: str = "fake-model") -> str:
         self.calls.append((text, target))
         if self.delay:
             await asyncio.sleep(self.delay)
@@ -101,7 +101,7 @@ async def client_no_raise(fake_llm, test_cache):
         yield c
 
 
-async def translate(client, text, target="es-MX", **kwargs):
+async def translate(client, text, target="hi-IN", **kwargs):
     payload = {"text": text}
     if target is not None:
         payload["target"] = target

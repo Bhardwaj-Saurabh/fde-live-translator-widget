@@ -20,10 +20,10 @@ Rubric ids are from `eval/rubric.json` (auto = scored by `eval/eval.py`).
 | Test | Requirement |
 |---|---|
 | `test_translated_text_returned_verbatim_from_llm` | service returns the translation unmangled |
-| `test_target_defaults_to_es_mx` | default target is es-MX |
+| `test_target_defaults_to_hi_in` | default target is hi-IN |
 | `test_prices_skus_numbers_pass_through_unaltered` | `$` prices / SKUs / numbers preserved end-to-end |
 | `test_cache_hit_dramatically_faster_than_miss` | hit latency ≪ miss latency (the point of the cache) |
-| `test_live_output_is_spanish_not_english` *(live)* | real LLM output is Spanish, not the input |
+| `test_live_output_is_hindi_not_english` *(live)* | real LLM output is Hindi (Devanagari), not the input |
 | `test_live_preserves_price_and_sku` *(live)* | prompt preserves prices/codes on the real model |
 | `test_live_translation_only_no_preamble_or_quotes` *(live)* | translation only — no preamble, no wrapping quotes |
 
@@ -58,7 +58,7 @@ rubric row.
 | Test | Requirement | Rubric criterion |
 |---|---|---|
 | proxies `/translate` and returns AI JSON verbatim | gateway↔AI proxy (TODO #2) | `widget_lights_up` |
-| defaults target to es-MX | contract default | `widget_lights_up` |
+| defaults target to hi-IN | contract default | `widget_lights_up` |
 | forwards batch shape | `/translate/batch` proxy | `widget_lights_up` |
 | exactly 400 on missing/non-string `text`, non-array `texts` | `400` invalid input | `service_separation_contract` |
 | `/health` nests live aiService | health nesting | `logging_observability` + `service_separation_contract` |

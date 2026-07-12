@@ -29,7 +29,7 @@ This writes, next to this file:
 - **`auto` criteria** (70 pts) are scored right here by running your backend:
   contract shapes, cache behavior + persistence, the SLA benchmark, logging/observability,
   status codes. See `rubric.json` for the exact checks.
-- **`manual` criteria** (30 pts) — Mexican-Spanish quality and deploy/docs — are scored by
+- **`manual` criteria** (30 pts) — Hindi quality and deploy/docs — are scored by
   the grader using the evidence the report captures (sample translations, cost/latency numbers)
   plus your video.
 

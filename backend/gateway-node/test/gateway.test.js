@@ -28,21 +28,21 @@ describe("gateway with a healthy AI service", () => {
     const r = await fetch(`${gw.base}/translate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: "Hello world", target: "es-MX" }),
+      body: JSON.stringify({ text: "Hello world", target: "hi-IN" }),
     });
     assert.equal(r.status, 200);
     assert.deepEqual(await r.json(), {
-      translated: "Hola mundo",
+      translated: "नमस्ते दुनिया",
       cached: false,
       latencyMs: 5,
       model: "stub-model",
     });
     const fwd = stub.requests.find((q) => q.url === "/translate");
     assert.ok(fwd, "gateway never called the AI service");
-    assert.deepEqual(fwd.body, { text: "Hello world", target: "es-MX" });
+    assert.deepEqual(fwd.body, { text: "Hello world", target: "hi-IN" });
   });
 
-  test("POST /translate defaults target to es-MX", async () => {
+  test("POST /translate defaults target to hi-IN", async () => {
     const countBefore = stub.requests.length;
     await fetch(`${gw.base}/translate`, {
       method: "POST",
@@ -50,14 +50,14 @@ describe("gateway with a healthy AI service", () => {
       body: JSON.stringify({ text: "No target given" }),
     });
     const fwd = stub.requests.slice(countBefore).find((q) => q.url === "/translate");
-    assert.equal(fwd?.body?.target, "es-MX");
+    assert.equal(fwd?.body?.target, "hi-IN");
   });
 
   test("POST /translate/batch forwards the texts array and returns the batch shape", async () => {
     const r = await fetch(`${gw.base}/translate/batch`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ texts: ["Home", "Add to cart"], target: "es-MX" }),
+      body: JSON.stringify({ texts: ["Home", "Add to cart"], target: "hi-IN" }),
     });
     assert.equal(r.status, 200);
     const body = await r.json();
@@ -112,7 +112,7 @@ describe("gateway with a healthy AI service", () => {
     await fetch(`${gw.base}/translate`, {
       method: "POST",
       headers: { "content-type": "application/json", "x-request-id": sentinel },
-      body: JSON.stringify({ text: "Trace me", target: "es-MX" }),
+      body: JSON.stringify({ text: "Trace me", target: "hi-IN" }),
     });
     const fwd = stub.requests.find((q) => q.headers["x-request-id"] === sentinel);
     assert.ok(fwd, "inbound X-Request-Id was not forwarded to the AI service");
@@ -123,7 +123,7 @@ describe("gateway with a healthy AI service", () => {
     await fetch(`${gw.base}/translate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ text: "Generate an id for me", target: "es-MX" }),
+      body: JSON.stringify({ text: "Generate an id for me", target: "hi-IN" }),
     });
     const fwd = stub.requests.slice(countBefore).find((q) => q.url === "/translate");
     assert.ok(fwd, "gateway never called the AI service");
@@ -160,7 +160,7 @@ describe("gateway when the AI service fails", () => {
       const r = await fetch(`${gw.base}/translate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: input, target: "es-MX" }),
+        body: JSON.stringify({ text: input, target: "hi-IN" }),
       });
       assert.equal(r.status, 502);
       const body = await r.json();
@@ -179,7 +179,7 @@ describe("gateway when the AI service fails", () => {
       const r = await fetch(`${gw.base}/translate`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text: "Anyone home?", target: "es-MX" }),
+        body: JSON.stringify({ text: "Anyone home?", target: "hi-IN" }),
       });
       assert.equal(r.status, 502);
     } finally {

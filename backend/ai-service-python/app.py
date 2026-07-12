@@ -1,7 +1,7 @@
 """
 FDE · Assignment 1 · Python AI Service  (this is the real assignment)
 =====================================================================
-A small FastAPI service that translates English → Mexican Spanish with:
+A small FastAPI service that translates English → Hindi with:
   - an LLM call            (lib/llm.py)
   - a two-tier cache       (lib/cache.py)  — memory + SQLite
   - structured logging     (lib/logger.py) — provided, wired for you
@@ -37,11 +37,11 @@ cache = TwoTierCache(DB_PATH)
 # request/response shapes ----------------------------------------------------
 class TranslateIn(BaseModel):
     text: str
-    target: str = "es-MX"
+    target: str = "hi-IN"
 
 class BatchIn(BaseModel):
     texts: list[str]
-    target: str = "es-MX"
+    target: str = "hi-IN"
 
 
 @app.on_event("startup")

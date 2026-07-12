@@ -1,7 +1,7 @@
 # Assignment 1 — Live Translate
 
-> Ship a browser widget that translates any English web page into **Mexican
-> Spanish** in real time and on demand — then build the backend that powers it.
+> Ship a browser widget that translates any English web page into **Hindi**
+> in real time and on demand — then build the backend that powers it.
 
 You are given a **working frontend** (a widget, a console loader, and a Chrome
 extension). Your job is to build the **backend** it talks to. When your backend
@@ -92,17 +92,17 @@ same shapes to the **Python AI service**.
 ### `POST /translate`
 ```jsonc
 // request
-{ "text": "Good morning, welcome!", "target": "es-MX" }
+{ "text": "Good morning, welcome!", "target": "hi-IN" }
 // response
-{ "translated": "¡Buenos días, bienvenido!", "cached": false, "latencyMs": 812, "model": "claude-sonnet-4-6" }
+{ "translated": "सुप्रभात, स्वागत है!", "cached": false, "latencyMs": 812, "model": "claude-sonnet-4-6" }
 ```
 
 ### `POST /translate/batch`  (used by "Translate page")
 ```jsonc
 // request
-{ "texts": ["Home", "Best sellers", "Add to cart"], "target": "es-MX" }
+{ "texts": ["Home", "Best sellers", "Add to cart"], "target": "hi-IN" }
 // response
-{ "results": [ { "translated": "Inicio", "cached": true }, ... ], "latencyMs": 40 }
+{ "results": [ { "translated": "होम", "cached": true }, ... ], "latencyMs": 40 }
 ```
 
 ### `GET /health`
@@ -131,7 +131,7 @@ then the gateway, then load the widget.
 ### Part 1 — Python AI service (the real work)
 `backend/ai-service-python/` · full guide in its own README.
 
-1. `lib/llm.py` — write the Mexican-Spanish prompt and the LLM call.
+1. `lib/llm.py` — write the Hindi prompt and the LLM call.
 2. `lib/cache.py` — implement the SQLite tier (`init` / `get` / `set`); the memory tier and stats are given.
 3. `app.py` — wire the **cache→LLM→cache** flow in `translate_one()`.
 
@@ -146,7 +146,7 @@ uvicorn app:app --reload --port 8000
 Test it in isolation:
 ```bash
 curl -s localhost:8000/translate -H 'content-type: application/json' \
-  -d '{"text":"Good morning, welcome!","target":"es-MX"}'   # run twice → 2nd is cached
+  -d '{"text":"Good morning, welcome!","target":"hi-IN"}'   # run twice → 2nd is cached
 ```
 
 ### Part 2 — Node gateway (software backend)
@@ -175,7 +175,7 @@ npm start                   # http://localhost:8787
 - **Demo page:** open `demo-pages/index.html`, uncomment the `<script src=".../widget.js">` line at the bottom.
 
 Open the **translate button** bottom-right and click **Translate page** → the
-whole page flips to Mexican Spanish. Click **Restore page**, then **Translate
+whole page flips to Hindi. Click **Restore page**, then **Translate
 page** again → the badges show **cache hits** and the latency drops.
 
 > Note: the extension loads its own copy of the widget at
@@ -253,7 +253,7 @@ gate and a CI check.
 
 Your backend must:
 
-- [ ] **LLM** — translate EN → **Mexican Spanish** (es-MX register, not generic Spanish) via a real LLM call.
+- [ ] **LLM** — translate EN → **Hindi** (natural hi-IN in Devanagari script, not romanized Hinglish) via a real LLM call.
 - [ ] **Caching** — two-tier (in-memory + SQLite), keyed by a hash of `(text, target)`; identical input never calls the LLM twice; `cached`/`latencyMs`/`/stats` reflect it.
 - [ ] **Logging** — one structured line per request in the gateway **and** per translation in the AI service; greppable.
 - [ ] **Tracing** — a request ID at the gateway (reusing an inbound `X-Request-Id` if present, else generated), forwarded to the AI service, and logged by both; one request is greppable end-to-end across both services by that single ID.
@@ -281,7 +281,7 @@ Your backend must:
 - [ ] The provided widget works **unmodified** against the gateway at `:8787`
 
 **LLM**
-- [ ] Output is natural **Mexican Spanish (es-MX)**, translation only — no preamble, no wrapping quotes
+- [ ] Output is natural **Hindi (hi-IN)**, translation only — no preamble, no wrapping quotes
 - [ ] Numbers, prices (`$`), and product/model codes are preserved
 - [ ] Provider is swappable via env; the API key is read from `.env`, never hard-coded
 - [ ] **Errors surface, never swallowed** — on a provider/LLM failure the request returns `502` and the error is logged; the service **never returns the untranslated input as if it succeeded** (a silent "return the original text" fallback is an automatic fail)
@@ -313,8 +313,8 @@ Your backend must:
 curl -sf localhost:8000/health && curl -sf localhost:8787/health
 
 # 2. contract + cache: run twice — 2nd response must have "cached": true and a much lower latencyMs
-curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"es-MX"}'
-curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"es-MX"}'
+curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"hi-IN"}'
+curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"hi-IN"}'
 
 # 3. cache survives restart: stop + restart the AI service, repeat the call above → still "cached": true
 
@@ -338,7 +338,7 @@ curl -sf https://<your-gateway-app>.fly.dev/health
 | Area | Pts | What we look for |
 |------|-----|------------------|
 | Widget lights up | 15 | Fresh clone → follow README → Translate page works end to end on the demo page and a real site |
-| LLM & prompt quality | 20 | Natural Mexican Spanish; numbers/prices/model codes preserved; translation only (no preamble) |
+| LLM & prompt quality | 20 | Natural Hindi; numbers/prices/model codes preserved; translation only (no preamble) |
 | Caching correctness | 20 | Real two-tier cache; provable hits; big latency gap; survives a restart (SQLite) |
 | Performance & SLA | 15 | `benchmark/bench.py` exits 0; hit/miss latency, hit rate, throughput all meet `sla.json` |
 | Logging & observability | 10 | Structured, useful logs; a request ID correlates one request across both services; accurate `/stats`; `/health` reports the AI service |
@@ -355,19 +355,19 @@ them is an automatic fail).
 
 | Criterion | Pts | Awarded | Status | Evidence |
 |-----------|-----|---------|--------|----------|
-| Widget lights up | 15 | 15 | ✅ Pass | `/translate` + `/translate/batch` return valid shapes; page flips to es-MX live on homedepot.com |
+| Widget lights up | 15 | 15 | ✅ Pass | `/translate` + `/translate/batch` return valid shapes; page flips to hi-IN live on homedepot.com |
 | Caching correctness | 20 | 20 | ✅ Pass | 2nd identical call `cached: true`, **3 ms vs 812 ms**; `translations.db` has 214 rows; survives restart |
 | Performance & SLA | 15 | 15 | ✅ Pass | `bench.py` exits 0 — hit p95 4 ms, miss p95 2.9 s, hit rate 71%, 34 req/s |
 | Logging & observability | 10 | 10 | ✅ Pass | Structured lines in both services; one trace id correlates a request end-to-end; `/stats` hit rate accurate |
 | Service separation & contract | 10 | 10 | ✅ Pass | Clean gateway↔AI split; `400` on empty text; gateway `/health` nests AI-service health |
-| LLM & prompt quality | 20 | 17 | ⚠️ Partial | Natural es-MX, translation-only; `$1,299.00` and `SKU-4471` preserved; one idiom rendered a little stiff |
+| LLM & prompt quality | 20 | 17 | ⚠️ Partial | Natural hi-IN, translation-only; `$1,299.00` and `SKU-4471` preserved; one idiom rendered a little stiff |
 | Deploy & docs | 10 | 6 | ⚠️ Partial | Deployed on Fly.io, public gateway healthy; run notes present; AI service left publicly reachable (no `flycast`) |
 | **Total** | **100** | **93** | | Auto: 70/70 · Manual: 23/30 |
 
 **Red-line checks (auto-flagged):** ✅ no secrets committed · ✅ no edits to provided `widget/` · `extension/` · `benchmark/`
 
 **Captured evidence (excerpt)**
-- Samples: *"Good morning, welcome!"* → *"¡Buenos días, bienvenido!"* · *"Add to cart"* → *"Agregar al carrito"*
+- Samples: *"Good morning, welcome!"* → *"सुप्रभात, स्वागत है!"* · *"Add to cart"* → *"कार्ट में जोड़ें"*
 - Latency: miss p95 **2.9 s** · hit p95 **4 ms** (~700× faster on a cache hit)
 - Cost: ~$0.0004 / miss · at 71% hit rate, projected monthly bill is ~⅓ of no-cache
 - Deploy: `https://jordan-livetranslate-gw.fly.dev/health` → `{"status":"ok"}`
@@ -383,7 +383,7 @@ Read your `eval/REPORT.md` the same way: fix any **Fail/Partial** rows before yo
 - **Rate limiting** on the gateway (per-IP) with a `429` + friendly widget message.
 - **Streaming** long translations token-by-token into the widget.
 - **Cache TTL / invalidation** and a `POST /clear-cache` endpoint.
-- **Language picker** in the widget/popup (es-MX, es-ES, pt-BR…) threaded through the contract.
+- **Language picker** in the widget/popup (hi-IN, es-ES, pt-BR…) threaded through the contract.
 
 ---
 
@@ -399,7 +399,7 @@ Every FDE project is submitted as a **Product Evaluation + a video demo**.
    - Under the hood it runs `python eval/eval.py --student "…" --video "…"` and
      `python benchmark/bench.py` — you can run those directly too. See [`eval/`](eval/).
 2. **Submit `PRODUCT_EVAL.md` (or the PDF)** and a **60–90s screen recording**:
-   the widget translating a real page into Mexican Spanish, then a cache hit shown in the badges.
+   the widget translating a real page into Hindi, then a cache hit shown in the badges.
 3. Push your repo with both `backend/` services implemented. Do **not** commit
    `.env`, `node_modules/`, `.venv/`, or `*.db`. Add a short **"How I ran it"**
    section to your README noting which LLM provider you used.

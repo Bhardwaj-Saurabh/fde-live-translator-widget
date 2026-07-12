@@ -89,7 +89,7 @@ def run_phase(base: str, items, concurrency: int):
     results = []
     t0 = time.perf_counter()
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
-        futures = [pool.submit(post, url, {"text": t, "target": "es-MX"}) for t in items]
+        futures = [pool.submit(post, url, {"text": t, "target": "hi-IN"}) for t in items]
         for i, fut in enumerate(futures):
             res = fut.result()
             res["text"] = items[i]

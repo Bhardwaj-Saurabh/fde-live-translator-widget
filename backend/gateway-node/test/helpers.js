@@ -44,9 +44,9 @@ async function startStubAiService({ mode = "ok" } = {}) {
       }
 
       const routes = {
-        "/translate": { translated: "Hola mundo", cached: false, latencyMs: 5, model: "stub-model" },
+        "/translate": { translated: "नमस्ते दुनिया", cached: false, latencyMs: 5, model: "stub-model" },
         "/translate/batch": {
-          results: (body?.texts || []).map(() => ({ translated: "Hola", cached: false })),
+          results: (body?.texts || []).map(() => ({ translated: "नमस्ते", cached: false })),
           latencyMs: 9,
         },
         "/health": { status: "ok", model: "stub-model", cacheSize: 1 },

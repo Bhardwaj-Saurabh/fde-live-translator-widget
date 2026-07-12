@@ -25,6 +25,8 @@ Detail and concrete anti-pattern snippets live in
 `references/design-principles.md` — read it before judging.
 
 1. **Single responsibility** — `app.py` does HTTP orchestration only;
+   note: the prompt constants in `lib/llm.py` are distilled from
+   `docs/hindi-style-guide.md`, not undocumented magic strings;
    `lib/llm.py` does the provider call only; `lib/cache.py` does storage only.
    Flag prompt-building or SQL in `app.py`, and HTTP shapes leaking into `lib/`.
 2. **Dependency inversion / provider swappability** — `translate_text()` is

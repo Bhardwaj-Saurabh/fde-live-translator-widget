@@ -37,8 +37,8 @@ so it works on strict-CSP sites. Console injection is **blocked by CSP on sites 
 homedepot.com**, so don't rely on it for this test. Then click **Translate page**.
 
 Capture, honestly:
-- **Did it translate?** Whole page flipped to Mexican Spanish, layout intact?
-- **Quality:** sample **6–8** original→translated string pairs. Judge es-MX register (not generic/Castilian), fluency, and that **numbers, prices ($), model/SKU codes are preserved**.
+- **Did it translate?** Whole page flipped to Hindi, layout intact?
+- **Quality:** sample **6–8** original→translated string pairs. Judge register against `docs/hindi-style-guide.md` (Devanagari script, आप/करें register, loan-noun + native-verb pattern — not romanized Hinglish), fluency, and that **numbers, prices ($), model/SKU codes are preserved**.
 - **Coverage:** anything left in English (nav, dynamically-loaded content, image text)?
 - **Cache:** click Restore, then Translate again — note the cache-hit badge and the latency drop.
 - **Resilience:** did site CSP block injection? Any console errors? Did the page break?
@@ -48,7 +48,7 @@ Capture, honestly:
 
 ## Step 3 — Assess the product
 Score each dimension **Pass / Partial / Fail** with one line of evidence:
-translation accuracy · es-MX register · numbers/prices preserved · page coverage ·
+translation accuracy · hi-IN register · numbers/prices preserved · page coverage ·
 cache effectiveness · latency vs SLA · error handling (no silent English) · resilience on a real site · UX polish.
 
 ## Step 4 — Write PRODUCT_EVAL.md

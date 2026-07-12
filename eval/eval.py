@@ -15,7 +15,7 @@ Outputs (next to this script):
                     skill folds this into PRODUCT_EVAL.md, which is what you submit.
     report.json   ← machine-readable, same data
 
-`auto` criteria are scored here. `manual` criteria (Mexican-Spanish quality,
+`auto` criteria are scored here. `manual` criteria (Hindi quality,
 docs) are left for the grader, who uses the captured evidence + your video.
 Standard library only.
 """
@@ -79,8 +79,8 @@ def main():
     crit = {c["id"]: c for c in RUBRIC["criteria"]}
 
     # ---- widget_lights_up: contract works ----
-    s1, b1 = post(args.target + "/translate", {"text": "Good morning, welcome!", "target": "es-MX"})
-    s2, bb = post(args.target + "/translate/batch", {"texts": ["Home", "Add to cart"], "target": "es-MX"})
+    s1, b1 = post(args.target + "/translate", {"text": "Good morning, welcome!", "target": "hi-IN"})
+    s2, bb = post(args.target + "/translate/batch", {"texts": ["Home", "Add to cart"], "target": "hi-IN"})
     single_ok = s1 == 200 and isinstance(b1, dict) and all(k in b1 for k in ("translated", "cached", "latencyMs", "model"))
     batch_ok = s2 == 200 and isinstance(bb, dict) and isinstance(bb.get("results"), list) and len(bb["results"]) == 2
     ev["sample_translation"] = b1.get("translated") if b1 else None
@@ -90,7 +90,7 @@ def main():
         award("widget_lights_up", 0, f"single_ok={single_ok} batch_ok={batch_ok} (status {s1}/{s2})")
 
     # ---- caching_correctness ----
-    phrase = {"text": "The quick brown fox jumps over the lazy dog.", "target": "es-MX"}
+    phrase = {"text": "The quick brown fox jumps over the lazy dog.", "target": "hi-IN"}
     _, c1 = post(args.target + "/translate", phrase)
     time.sleep(0.05)
     _, c2 = post(args.target + "/translate", phrase)
@@ -134,7 +134,7 @@ def main():
 
     # trace: send a sentinel X-Request-Id, confirm it lands in BOTH services' logs
     trace_id = "evaltrace-" + uuid.uuid4().hex[:12]
-    post(args.target + "/translate", {"text": "trace probe", "target": "es-MX"},
+    post(args.target + "/translate", {"text": "trace probe", "target": "hi-IN"},
          headers={"X-Request-Id": trace_id})
     time.sleep(0.2)
 

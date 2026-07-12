@@ -2,7 +2,7 @@
  * FDE · Assignment 1 · Live Translate Widget  (PROVIDED — do not rewrite)
  * -----------------------------------------------------------------------
  * A self-contained, dependency-free translation widget for any web page.
- * It translates the whole page into Mexican Spanish on demand and can
+ * It translates the whole page into Hindi on demand and can
  * restore the original English.
  *
  * It runs in three environments unchanged:
@@ -29,7 +29,7 @@
   const CONFIG = Object.assign(
     {
       API_URL: "http://localhost:8787", // your Node gateway
-      TARGET: "es-MX", // Mexican Spanish
+      TARGET: "hi-IN", // Hindi
       BATCH_SIZE: 40, // nodes per /translate/batch call
     },
     window.FDE_CONFIG || {}
@@ -144,12 +144,12 @@
       <span class="fde-hicon">${ICON_LANG}</span>
       <div>
         <div class="fde-title">Live Translate</div>
-        <div class="fde-sub">English to Mexican Spanish</div>
+        <div class="fde-sub">English to Hindi</div>
       </div>
       <button class="fde-x" type="button" aria-label="Close">${ICON_X}</button>
     </div>
     <div class="fde-body">
-      <p class="fde-lead">Translate this page into Mexican Spanish, then restore it anytime.</p>
+      <p class="fde-lead">Translate this page into Hindi, then restore it anytime.</p>
       <div class="fde-badges" id="fde-badges"></div>
       <button class="fde-btn primary" id="fde-page" type="button">Translate page</button>
       <button class="fde-btn ghost" id="fde-restore" type="button">Restore page</button>

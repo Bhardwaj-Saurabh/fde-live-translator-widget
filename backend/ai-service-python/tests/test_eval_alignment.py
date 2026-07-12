@@ -23,7 +23,7 @@ async def test_translate_response_has_contract_keys(client):
 # rubric: widget_lights_up — /translate/batch contract shape
 async def test_batch_response_shape(client):
     texts = ["Home", "Add to cart"]
-    r = await client.post("/translate/batch", json={"texts": texts, "target": "es-MX"})
+    r = await client.post("/translate/batch", json={"texts": texts, "target": "hi-IN"})
     assert r.status_code == 200
     body = r.json()
     assert isinstance(body["latencyMs"], int)

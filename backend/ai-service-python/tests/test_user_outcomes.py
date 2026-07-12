@@ -3,7 +3,7 @@
 What the widget user experiences: their page text comes back translated,
 prices/SKUs intact, and repeat visits are near-instant. Mocked LLM by default;
 the TestLiveLLM class calls the real provider and is the only true check of
-es-MX quality (enable with RUN_LIVE_LLM_TESTS=1 python -m pytest -m live).
+hi-IN quality (enable with RUN_LIVE_LLM_TESTS=1 python -m pytest -m live).
 """
 import os
 
@@ -14,12 +14,12 @@ from conftest import translate
 
 async def test_translated_text_returned_verbatim_from_llm(client, fake_llm):
     r = await translate(client, "Good morning, welcome!")
-    assert r.json()["translated"] == "[es-MX] Good morning, welcome!"
+    assert r.json()["translated"] == "[hi-IN] Good morning, welcome!"
 
 
-async def test_target_defaults_to_es_mx(client, fake_llm):
+async def test_target_defaults_to_hi_in(client, fake_llm):
     await translate(client, "Home", target=None)  # omit target entirely
-    assert fake_llm.calls == [("Home", "es-MX")]
+    assert fake_llm.calls == [("Home", "hi-IN")]
 
 
 async def test_prices_skus_numbers_pass_through_unaltered(client):
@@ -47,13 +47,13 @@ class TestLiveLLM:
     """Calls the real lib.llm.translate_text — the executable version of the
     manual llm_prompt_quality rubric row. Needs a provider key in .env."""
 
-    async def test_live_output_is_spanish_not_english(self):
+    async def test_live_output_is_hindi_not_english(self):
         from lib.llm import translate_text
 
         out = await translate_text("Good morning, welcome to our store!")
         assert out.strip() and out.strip().lower() != "good morning, welcome to our store!"
-        spanish_markers = ("¡", "á", "é", "í", "ó", "ú", "ñ", "bienvenid", "buenos")
-        assert any(m in out.lower() for m in spanish_markers), f"not Spanish? {out!r}"
+        # natural Hindi is written in Devanagari (U+0900–U+097F), not romanized
+        assert any("ऀ" <= ch <= "ॿ" for ch in out), f"no Devanagari — not Hindi? {out!r}"
 
     async def test_live_preserves_price_and_sku(self):
         from lib.llm import translate_text
@@ -67,6 +67,65 @@ class TestLiveLLM:
 
         out = (await translate_text("Add to cart")).strip()
         assert not out.startswith(('"', "'", "«")), f"wrapped in quotes: {out!r}"
-        for preamble in ("here", "sure", "the translation", "translated", "claro"):
+        for preamble in ("here", "sure", "the translation", "translated", "अनुवाद:", "यहाँ"):
             assert not out.lower().startswith(preamble), f"preamble detected: {out!r}"
         assert "\n" not in out, f"multi-line answer for a 3-word input: {out!r}"
+
+
+def _devanagari_ratio(text: str) -> float:
+    """Share of alphabetic chars that are Devanagari (ignores digits/symbols)."""
+    alpha = [ch for ch in text if ch.isalpha()]
+    if not alpha:
+        return 0.0
+    return sum(1 for ch in alpha if "ऀ" <= ch <= "ॿ") / len(alpha)
+
+
+@pytest.mark.live
+@pytest.mark.skipif(
+    not os.getenv("RUN_LIVE_LLM_TESTS"),
+    reason="live LLM tests cost money; set RUN_LIVE_LLM_TESTS=1 to run",
+)
+class TestLiveStyle:
+    """Style adherence against docs/hindi-style-guide.md — each test names
+    the guide section it enforces. Update the guide + prompt together."""
+
+    async def test_prose_is_mostly_devanagari_and_ends_with_danda(self):
+        # guide §5: danda for prose; §4: Devanagari body
+        from lib.llm import translate_text
+
+        out = (await translate_text("Our team will contact you within two days.")).strip()
+        assert _devanagari_ratio(out) >= 0.5, f"too little Devanagari: {out!r}"
+        assert out.endswith("।"), f"prose must end with danda: {out!r}"
+
+    async def test_no_devanagari_digits_and_currency_preserved(self):
+        # guide §5: Western digits only; $ never converted
+        from lib.llm import translate_text
+
+        out = await translate_text("Order 3 items for $49.99 and get 10% off.")
+        assert not any("०" <= ch <= "९" for ch in out), f"Devanagari digits: {out!r}"
+        for token in ("3", "$49.99", "10%"):
+            assert token in out, f"{token} lost/reformatted in {out!r}"
+        assert "₹" not in out, f"currency converted to rupees: {out!r}"
+
+    async def test_brand_name_stays_latin(self):
+        # guide §4: brands never transliterated
+        from lib.llm import translate_text
+
+        out = await translate_text("Shop the Home Depot summer sale today")
+        assert "Home Depot" in out, f"brand transliterated/translated: {out!r}"
+        assert "होम डिपो" not in out
+
+    async def test_ui_label_uses_canonical_lexicon_no_terminal_punctuation(self):
+        # guide §6: canonical e-commerce strings; §5: bare UI labels
+        from lib.llm import translate_text
+
+        out = (await translate_text("Add to cart")).strip()
+        assert "कार्ट" in out, f"expected loanword कार्ट (guide §6): {out!r}"
+        assert not out.endswith(("।", ".", "!")), f"UI label got punctuation: {out!r}"
+
+    async def test_imperative_uses_karein_register(self):
+        # guide §2: करें/-एं imperatives, never कीजिए/करो
+        from lib.llm import translate_text
+
+        out = await translate_text("Choose a delivery location to continue")
+        assert "कीजिए" not in out and "करो" not in out, f"wrong register: {out!r}"

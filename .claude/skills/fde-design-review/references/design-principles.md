@@ -16,7 +16,7 @@ Each module has one reason to change:
 ```python
 # BAD — app.py now changes when the prompt changes
 async def translate_one(text, target):
-    system = "You are a professional translator. Translate into Mexican Spanish…"
+    system = "You are a professional translator. Translate into Hindi…"
     msg = await client.messages.create(system=system, ...)
 ```
 
@@ -40,7 +40,7 @@ plus `.env` values.
 - New provider: add a branch/implementation in `lib/llm.py` selected by env
   (e.g. `LLM_PROVIDER`), without editing `app.py` or the cache.
 
-**Anti-pattern:** `if target == "es-MX": … elif target == "es-ES": …` chains in
+**Anti-pattern:** `if target == "hi-IN": … elif target == "es-ES": …` chains in
 `app.py`, or per-language endpoints.
 
 ## 4. Gateway vs AI-service separation

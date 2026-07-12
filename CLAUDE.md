@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-FDE Assignment 1 — Live Translate. A provided browser widget translates English web pages into **Mexican Spanish (es-MX)**; the student builds the two backend services that power it. **`AGENTS.md` is the binding contract for this assignment — read it before changing anything.** `README.md` has the full brief, grading rubric, and troubleshooting.
+FDE Assignment 1 — Live Translate. A provided browser widget translates English web pages into **Hindi (hi-IN)**; the student builds the two backend services that power it. **`AGENTS.md` is the binding contract for this assignment — read it before changing anything.** `README.md` has the full brief, grading rubric, and troubleshooting.
 
 ## Boundaries — what to touch
 
@@ -29,7 +29,7 @@ The API contract (shapes in README/AGENTS.md) is fixed — the provided widget m
 
 - **Fail loud on LLM errors:** never catch a provider failure and return the original English as if translated — that is an automatic fail. Let it propagate so the gateway returns `502`.
 - **Cache correctness:** identical `(text, target)` never calls the LLM twice; `cached: true` only when served from cache; the SQLite tier must survive a restart; `latencyMs` is measured server-side on both paths.
-- **LLM output:** natural es-MX (not Castilian), translation only (no preamble/quotes), numbers/prices/product codes preserved verbatim.
+- **LLM output:** natural Hindi in Devanagari script (not romanized Hinglish), translation only (no preamble/quotes), numbers/prices/product codes preserved verbatim.
 
 ## Commands
 
@@ -48,7 +48,7 @@ npm start                                 # http://localhost:8787
 
 # Smoke test (run twice — 2nd must be "cached": true with far lower latencyMs)
 curl -s localhost:8787/translate -H 'content-type: application/json' \
-  -d '{"text":"Good morning","target":"es-MX"}'
+  -d '{"text":"Good morning","target":"hi-IN"}'
 
 # SLA benchmark — the grading gate; must exit 0 (targets in benchmark/sla.json)
 python benchmark/bench.py                 # through the gateway

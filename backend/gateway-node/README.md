@@ -23,7 +23,7 @@ Start the Python AI service first (port 8000), then this gateway (port 8787).
 ```bash
 curl -s localhost:8787/health           # should report the AI service health too
 curl -s localhost:8787/translate -H 'content-type: application/json' \
-  -d '{"text":"Hello there","target":"es-MX"}'
+  -d '{"text":"Hello there","target":"hi-IN"}'
 ```
 
 Once both `TODO`s are done and the AI service works, load the widget (console

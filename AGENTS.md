@@ -25,7 +25,7 @@ not relax, reinterpret, or "improve" these requirements — conform to them.
 - The browser talks ONLY to the Node gateway (`:8787`); the gateway talks to the Python AI service (`:8000`).
 
 ### LLM
-- Translate English → **Mexican Spanish (es-MX)** — not generic/Castilian Spanish.
+- Translate English → **Hindi (hi-IN)** — natural Hindi in Devanagari script, not romanized Hinglish.
 - Return the translation ONLY: no preamble, no explanations, no wrapping quotes.
 - Preserve numbers, prices (`$`), and product/model codes verbatim.
 - Read the API key from `.env`. Never hard-code a key. Keep the provider swappable.
@@ -69,8 +69,8 @@ Run every step and confirm it passes before telling the student you're done:
 curl -sf localhost:8000/health && curl -sf localhost:8787/health
 
 # 2. contract + cache proof: run twice; 2nd MUST be "cached": true with far lower latencyMs
-curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"es-MX"}'
-curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"es-MX"}'
+curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"hi-IN"}'
+curl -s localhost:8787/translate -H 'content-type: application/json' -d '{"text":"Good morning","target":"hi-IN"}'
 
 # 3. cache persistence: restart the AI service, repeat the call → still "cached": true
 

@@ -1,0 +1,51 @@
+# Run the whole product locally:  docker compose up --build
+# Prerequisite: backend/ai-service-python/.env with your API key(s) —
+# it is mounted at runtime (env_file), never baked into an image.
+#
+# Mirrors the Fly.io topology: the gateway is the only published port; the
+# AI service is reachable solely on the compose-internal network, and its
+# SQLite cache lives on a named volume so it survives restarts.
+
+services:
+  ai-service:
+    build:
+      context: .
+      dockerfile: backend/ai-service-python/Dockerfile
+    env_file: backend/ai-service-python/.env
+    environment:
+      TRANSLATION_DB_PATH: /data/translations.db
+    volumes:
+      - translations-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    # no ports: — internal network only, like the private flycast app on Fly
+
+  gateway:
+    build:
+      context: .
+      dockerfile: backend/gateway-node/Dockerfile
+    ports:
+      - "8787:8787"
+    environment:
+      PORT: "8787"
+      AI_SERVICE_URL: http://ai-service:8000
+      RATE_LIMIT_MAX: "300"
+      RATE_LIMIT_WINDOW_SEC: "60"
+    depends_on:
+      ai-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+volumes:
+  translations-data:

@@ -187,3 +187,121 @@ describe("gateway when the AI service fails", () => {
     }
   });
 });
+
+describe("per-IP rate limiting", () => {
+  function translate(base, text) {
+    return fetch(`${base}/translate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text, target: "hi-IN" }),
+    });
+  }
+
+  test("requests over the limit get 429 with Retry-After and RateLimit headers", async () => {
+    const stub = await startStubAiService();
+    const gw = await startGateway({
+      aiUrl: stub.url,
+      env: { RATE_LIMIT_MAX: "3", RATE_LIMIT_WINDOW_SEC: "60" },
+    });
+    try {
+      for (let i = 0; i < 3; i++) {
+        const r = await translate(gw.base, `under limit ${i}`);
+        assert.equal(r.status, 200, `request ${i + 1} should pass`);
+        assert.equal(r.headers.get("ratelimit-limit"), "3");
+      }
+      const blocked = await translate(gw.base, "over limit");
+      assert.equal(blocked.status, 429);
+      assert.ok(Number(blocked.headers.get("retry-after")) > 0, "Retry-After header missing");
+      assert.equal(blocked.headers.get("ratelimit-remaining"), "0");
+      const body = await blocked.json();
+      assert.equal(body.error, "rate_limited");
+      assert.equal(typeof body.retryAfterSec, "number");
+    } finally {
+      gw.stop();
+      await stub.stop();
+    }
+  });
+
+  test("health, stats, and widget.js are never rate limited", async () => {
+    const stub = await startStubAiService();
+    const gw = await startGateway({
+      aiUrl: stub.url,
+      env: { RATE_LIMIT_MAX: "1", RATE_LIMIT_WINDOW_SEC: "60" },
+    });
+    try {
+      await translate(gw.base, "use up the only slot");
+      assert.equal((await translate(gw.base, "blocked")).status, 429);
+      for (const path of ["/health", "/stats", "/widget.js"]) {
+        const r = await fetch(`${gw.base}${path}`);
+        assert.equal(r.status, 200, `${path} must stay exempt from the limiter`);
+      }
+    } finally {
+      gw.stop();
+      await stub.stop();
+    }
+  });
+
+  test("RATE_LIMIT_MAX=0 disables the limiter", async () => {
+    const stub = await startStubAiService();
+    const gw = await startGateway({
+      aiUrl: stub.url,
+      env: { RATE_LIMIT_MAX: "0", RATE_LIMIT_WINDOW_SEC: "60" },
+    });
+    try {
+      for (let i = 0; i < 10; i++) {
+        assert.equal((await translate(gw.base, `free ${i}`)).status, 200);
+      }
+    } finally {
+      gw.stop();
+      await stub.stop();
+    }
+  });
+
+  test("batch larger than 100 texts is rejected with 400 before reaching the AI service", async () => {
+    const stub = await startStubAiService();
+    const gw = await startGateway({ aiUrl: stub.url });
+    try {
+      const r = await fetch(`${gw.base}/translate/batch`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ texts: Array.from({ length: 101 }, (_, i) => `t${i}`), target: "hi-IN" }),
+      });
+      assert.equal(r.status, 400);
+      assert.ok((await r.json()).error);
+      assert.ok(!stub.requests.some((q) => q.url === "/translate/batch"), "oversized batch must not be forwarded");
+    } finally {
+      gw.stop();
+      await stub.stop();
+    }
+  });
+});
+
+describe("admin clear-cache relay", () => {
+  let stub, gw;
+  before(async () => {
+    stub = await startStubAiService();
+    gw = await startGateway({ aiUrl: stub.url });
+  });
+  after(async () => {
+    gw.stop();
+    await stub.stop();
+  });
+
+  test("forwards the Authorization header and mirrors 200 from the AI service", async () => {
+    const r = await fetch(`${gw.base}/admin/clear-cache`, {
+      method: "POST",
+      headers: { authorization: "Bearer stub-admin-token" },
+    });
+    assert.equal(r.status, 200);
+    assert.deepEqual(await r.json(), { cleared: { memory: 1, db: 2 } });
+    const fwd = stub.requests.find((q) => q.url === "/clear-cache");
+    assert.equal(fwd?.headers?.authorization, "Bearer stub-admin-token");
+    assert.ok(fwd?.headers?.["x-request-id"], "request ID must be forwarded on admin calls too");
+  });
+
+  test("mirrors 401 (not 502) when the token is missing or wrong", async () => {
+    const r = await fetch(`${gw.base}/admin/clear-cache`, { method: "POST" });
+    assert.equal(r.status, 401);
+    assert.ok((await r.json()).error);
+  });
+});

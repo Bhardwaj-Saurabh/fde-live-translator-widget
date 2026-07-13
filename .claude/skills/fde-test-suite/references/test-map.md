@@ -51,6 +51,19 @@ rubric row.
 | `test_anthropic_direct_when_no_openrouter_key` | no OpenRouter key = single-provider behavior unchanged |
 | `test_wrapping_quotes_stripped_regardless_of_provider` | output cleanup is provider-agnostic |
 
+## Python: tests/test_cache_admin.py (fast — TTL + authenticated clear-cache)
+
+| Test | Requirement |
+|---|---|
+| `test_entry_expires_after_ttl_in_both_tiers` | `ttl_sec` ages entries out of memory AND SQLite |
+| `test_no_ttl_means_entries_never_expire` | default behavior unchanged (TTL opt-in) |
+| `test_expired_entries_count_in_stats` | expiry is observable (`expired` + `misses` counters) |
+| `test_reset_refreshes_created_at` | upsert refreshes entry age (latent bug once TTL exists) |
+| `test_clear_empties_both_tiers_and_persists` | `clear()` reaches the disk tier |
+| `test_clear_cache_403_when_no_admin_token_configured` | endpoint disabled until ADMIN_TOKEN set |
+| `test_clear_cache_401_on_missing_or_wrong_token` | bearer auth enforced (constant-time compare) |
+| `test_clear_cache_with_token_clears_and_next_request_misses` | flush is real: next request re-calls the LLM |
+
 ## Python: tests/test_user_outcomes.py::TestLiveStyle (live — style adherence)
 
 | Test | Guide section |
@@ -98,3 +111,8 @@ rubric row.
 | 502 when AI returns 500 / unreachable (never echoes English) | `502` upstream failure, fail loud | `service_separation_contract` |
 | forwards inbound `X-Request-Id` / generates one | trace correlation (TODO #2) | `logging_observability` |
 | logs one structured line per request | logging middleware (TODO #1) | `logging_observability` |
+| 429 + `Retry-After` + `RateLimit-*` over the per-IP limit | rate limiting (stretch: cost protection) | bonus |
+| `/health`, `/stats`, `/widget.js` exempt from the limiter | monitoring/bootstrap never throttled | bonus |
+| `RATE_LIMIT_MAX=0` disables the limiter | bench.py/local escape hatch | bonus |
+| batch > 100 texts → 400, never forwarded | cost cap can't be bypassed via one giant batch | bonus |
+| `/admin/clear-cache` relays Authorization, mirrors 200/401 | admin flush via public gateway, token stays on AI service | bonus |

@@ -10,6 +10,9 @@ primary_region = "lhr"
   PORT = "8787"
   # private flycast address — the AI service is not reachable from the internet
   AI_SERVICE_URL = "http://saurabh-livetranslate-ai.flycast"
+  # per-IP limit on the translate endpoints (each cache miss costs LLM money)
+  RATE_LIMIT_MAX = "300"
+  RATE_LIMIT_WINDOW_SEC = "60"
 
 [http_service]
   internal_port = 8787

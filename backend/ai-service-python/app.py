@@ -16,13 +16,14 @@ and request-ID logging. Run:
     uvicorn app:app --reload --port 8000
 """
 import asyncio
+import hmac
 import os
 import time
 
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
 from lib.cache import TwoTierCache
@@ -33,9 +34,10 @@ load_dotenv()
 
 DB_PATH = os.getenv("TRANSLATION_DB_PATH", "translations.db")
 BATCH_CONCURRENCY = int(os.getenv("BATCH_CONCURRENCY", "8"))
+CACHE_TTL_SEC = int(os.getenv("CACHE_TTL_SEC", "0")) or None  # 0/unset = never expire
 
 log = get_logger("ai-service")
-cache = TwoTierCache(DB_PATH)
+cache = TwoTierCache(DB_PATH, ttl_sec=CACHE_TTL_SEC)
 
 
 @asynccontextmanager
@@ -140,6 +142,27 @@ async def translate_batch(body: BatchIn, request: Request):
     )
     # widget expects {results: [{translated, cached}], latencyMs}
     return {"results": [{"translated": r["translated"], "cached": r["cached"]} for r in results], "latencyMs": latency}
+
+
+@app.post("/clear-cache")
+async def clear_cache(request: Request):
+    """Admin: wipe both cache tiers (use after prompt/model changes).
+
+    Guarded by ADMIN_TOKEN. Unset token = endpoint operationally absent (403);
+    missing/wrong bearer = 401. Token comparison is constant-time.
+    """
+    admin_token = os.getenv("ADMIN_TOKEN")
+    if not admin_token:
+        raise HTTPException(status_code=403, detail="clear-cache disabled: no ADMIN_TOKEN configured")
+    supplied = request.headers.get("authorization", "")
+    if not hmac.compare_digest(supplied, f"Bearer {admin_token}"):
+        raise HTTPException(status_code=401, detail="invalid or missing admin token")
+    cleared = await cache.clear()
+    log.info(
+        "cache_cleared",
+        extra={"requestId": request.headers.get("x-request-id"), **cleared},
+    )
+    return {"cleared": cleared}
 
 
 @app.get("/health")

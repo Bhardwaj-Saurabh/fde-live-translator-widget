@@ -9,9 +9,12 @@ Why two tiers?
 The cache key must be deterministic for the same (text, target). Hashing the
 input with sha256 gives you a compact, collision-safe key.
 
-Fill in the TODOs. The method signatures and stats are laid out for you.
+Optional TTL (`ttl_sec`): entries older than the TTL are treated as misses and
+lazily deleted. Default None = never expire — translations don't go stale by
+themselves; staleness comes from prompt/model changes, handled by clear().
 """
 import hashlib
+import time
 
 import aiosqlite
 
@@ -21,10 +24,11 @@ def _key(text: str, target: str) -> str:
 
 
 class TwoTierCache:
-    def __init__(self, db_path: str):
+    def __init__(self, db_path: str, ttl_sec: float | None = None):
         self.db_path = db_path
-        self._mem: dict[str, str] = {}
-        self._stats = {"requests": 0, "memory_hits": 0, "db_hits": 0, "misses": 0}
+        self.ttl_sec = ttl_sec
+        self._mem: dict[str, tuple[str, float]] = {}  # key -> (value, stored_monotonic)
+        self._stats = {"requests": 0, "memory_hits": 0, "db_hits": 0, "misses": 0, "expired": 0}
 
     async def init(self) -> None:
         """Create the translations table if it doesn't exist."""
@@ -52,16 +56,28 @@ class TwoTierCache:
 
         # 1) memory tier
         if k in self._mem:
-            self._stats["memory_hits"] += 1
-            return self._mem[k]
+            value, stored_at = self._mem[k]
+            if self.ttl_sec is not None and time.monotonic() - stored_at > self.ttl_sec:
+                del self._mem[k]  # expired here; the SQLite row is expired too — fall through
+            else:
+                self._stats["memory_hits"] += 1
+                return value
 
-        # 2) SQLite tier
+        # 2) SQLite tier — age computed in SQL so no timestamp parsing here
         async with aiosqlite.connect(self.db_path) as db:
             async with db.execute(
-                "SELECT translated FROM translations WHERE key = ?", (k,)
+                """SELECT translated, (julianday('now') - julianday(created_at)) * 86400.0
+                   FROM translations WHERE key = ?""",
+                (k,),
             ) as cur:
                 row = await cur.fetchone()
             if row is None:
+                self._stats["misses"] += 1
+                return None
+            if self.ttl_sec is not None and row[1] > self.ttl_sec:
+                await db.execute("DELETE FROM translations WHERE key = ?", (k,))
+                await db.commit()
+                self._stats["expired"] += 1
                 self._stats["misses"] += 1
                 return None
             await db.execute(
@@ -69,23 +85,35 @@ class TwoTierCache:
             )
             await db.commit()
 
-        self._mem[k] = row[0]  # warm the memory tier for next time
+        self._mem[k] = (row[0], time.monotonic())  # warm the memory tier for next time
         self._stats["db_hits"] += 1
         return row[0]
 
     async def set(self, text: str, target: str, translated: str, model: str) -> None:
-        """Store a translation in both tiers."""
+        """Store a translation in both tiers. A re-set refreshes the entry's age."""
         k = _key(text, target)
-        self._mem[k] = translated
+        self._mem[k] = (translated, time.monotonic())
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """INSERT INTO translations(key, source, target, translated, model)
                    VALUES(?, ?, ?, ?, ?)
                    ON CONFLICT(key) DO UPDATE SET
-                     translated = excluded.translated, model = excluded.model""",
+                     translated = excluded.translated, model = excluded.model,
+                     created_at = CURRENT_TIMESTAMP""",
                 (k, text, target, translated, model),
             )
             await db.commit()
+
+    async def clear(self) -> dict:
+        """Empty both tiers (e.g. after a prompt or model change). Returns counts."""
+        mem_count = len(self._mem)
+        self._mem.clear()
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute("SELECT COUNT(*) FROM translations") as cur:
+                db_count = (await cur.fetchone())[0]
+            await db.execute("DELETE FROM translations")
+            await db.commit()
+        return {"memory": mem_count, "db": db_count}
 
     async def size(self) -> int:
         async with aiosqlite.connect(self.db_path) as db:

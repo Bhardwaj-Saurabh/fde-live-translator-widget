@@ -43,6 +43,16 @@ async function startStubAiService({ mode = "ok" } = {}) {
         return res.end(JSON.stringify({ error: "stub upstream failure" }));
       }
 
+      if (req.url === "/clear-cache") {
+        // mirrors the real AI service: bearer-token guarded admin endpoint
+        if (req.headers.authorization !== "Bearer stub-admin-token") {
+          res.writeHead(401, { "content-type": "application/json" });
+          return res.end(JSON.stringify({ error: "invalid or missing admin token" }));
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ cleared: { memory: 1, db: 2 } }));
+      }
+
       const routes = {
         "/translate": { translated: "नमस्ते दुनिया", cached: false, latencyMs: 5, model: "stub-model" },
         "/translate/batch": {
@@ -67,13 +77,14 @@ async function startStubAiService({ mode = "ok" } = {}) {
   };
 }
 
-/** Spawn server.js on a free port against `aiUrl`; resolves when /health answers. */
-async function startGateway({ aiUrl }) {
+/** Spawn server.js on a free port against `aiUrl`; resolves when /health answers.
+ *  `env` merges extra variables into the child (e.g. RATE_LIMIT_MAX for limiter tests). */
+async function startGateway({ aiUrl, env = {} }) {
   const port = await getFreePort();
   let stdout = "";
   const child = spawn(process.execPath, ["server.js"], {
     cwd: GATEWAY_DIR,
-    env: { ...process.env, PORT: String(port), AI_SERVICE_URL: aiUrl },
+    env: { ...process.env, PORT: String(port), AI_SERVICE_URL: aiUrl, ...env },
   });
   child.stdout.on("data", (chunk) => (stdout += chunk));
   child.stderr.on("data", (chunk) => (stdout += chunk));

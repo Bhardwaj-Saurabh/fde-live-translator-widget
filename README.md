@@ -439,6 +439,14 @@ Every FDE project is submitted as a **Product Evaluation + a video demo**.
   `RUN_LIVE_LLM_TESTS=1 python -m pytest -m live` (**8 passed** on Haiku via OpenRouter — needs a key).
 - **Benchmark:** `python benchmark/bench.py` → **exit 0, all SLAs met**
   (hit p95 **7 ms**, miss p95 **1.68 s**, hit rate 75%, 0 errors, 1,723 req/s warm — a cache hit is ~229× faster).
+- **Run with Docker:** `docker compose up --build` (needs `backend/ai-service-python/.env` with your
+  key). Gateway on `:8787`; the AI service has no published port (internal network only, mirroring
+  the private Fly topology); the cache persists on a named volume across restarts.
+- **Production hardening:** per-IP rate limit on the translate endpoints (`RATE_LIMIT_MAX`, default
+  300/min, `0` disables; over-limit → `429` + `Retry-After`); batches capped at 100 texts (`400`);
+  cache TTL (`CACHE_TTL_SEC`, default off) and an authenticated cache flush for prompt/model changes:
+  `curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" https://saurabh-livetranslate-gw.fly.dev/admin/clear-cache`
+  (`ADMIN_TOKEN` is a Fly secret on the AI service; without it the endpoint is disabled).
 - **Deploy:** both services on Fly.io — gateway `https://saurabh-livetranslate-gw.fly.dev` (public), AI service reachable only via private flycast; SQLite cache on a persistent volume (`/data`). CI/CD (`.github/workflows/ci.yml`): every push runs both test suites + hygiene checks and auto-deploys `main` to Fly on green; pushing a `v*` tag also creates a GitHub Release.
 
 ---

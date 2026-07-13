@@ -1,0 +1,23 @@
+# Node gateway — PUBLIC app (the only thing the browser talks to).
+# Deploy from the assignment root:  fly deploy --config fly.gateway.toml
+app = "saurabh-livetranslate-gw"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "backend/gateway-node/Dockerfile"
+
+[env]
+  PORT = "8787"
+  # private flycast address — the AI service is not reachable from the internet
+  AI_SERVICE_URL = "http://saurabh-livetranslate-ai.flycast"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

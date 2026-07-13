@@ -4,7 +4,7 @@
 - **Date:** 2026-07-12
 - **Video demo:** pending — to be recorded
 - **LLM provider / model:** Anthropic — `claude-sonnet-4-6`
-- **Backend target:** `http://localhost:8787` (Fly.io deploy pending)
+- **Backend target:** `https://saurabh-livetranslate-gw.fly.dev` (Fly.io; AI service private via flycast, SQLite on persistent volume)
 
 ## Verdict
 
@@ -29,8 +29,14 @@
 | Cache hit rate | 75.0 % | ≥ 60 % | ✅ |
 | Throughput | 2017 req/s | ≥ 20 | ✅ |
 | Error rate | 0.0 % | ≤ 1 % | ✅ |
-| Cost per miss | $0.000143 | — | — |
-| Monthly savings from cache | $53.61 (of $71.48 → $17.87 at 500k/mo) | — | — |
+| Cost per miss | ~$0.003 (measured prompt: ~700–1000 input tokens × $3/MTok + output × $15/MTok) | — | — |
+| Monthly savings from cache | ~$1,150/mo (of ~$1,550 → ~$390 at 500k/mo, 75% hit rate) | — | — |
+
+> **Cost note:** `bench.py` reports $0.000143/miss and $53.61/mo savings, but it estimates
+> tokens from the input text alone (~14 tokens). The real per-miss request carries the
+> style-guide system prompt + few-shot examples (~700–1000 input tokens), making true costs
+> ~20× higher. The relative saving is unchanged — the cache eliminates 75% of LLM spend —
+> and batching multiple strings per LLM call would amortize the prompt overhead further.
 
 ## 2. Live-website test
 
@@ -78,9 +84,11 @@
 1. **Run the live-website test** — load `extension/` in Chrome, translate a Home Depot
    product page, capture screenshots + cache-hit badges, and fill section 2; record the
    60–90 s video at the same time.
-2. **Deploy both services to Fly.io** and point the extension at the public gateway —
-   the live test must pass against the deployed URL, not localhost (keep the AI service
-   private via flycast).
+2. ~~Deploy both services to Fly.io~~ **Done** — gateway public at
+   `https://saurabh-livetranslate-gw.fly.dev`, AI service flycast-only (verified
+   unreachable from the internet), cache volume mounted. Point the extension popup
+   at the public URL for the live test. Note: Anthropic account needs credits
+   topped up before deployed translations succeed.
 3. **Watch cold-miss p95** — it straddles the 3.5 s SLA depending on provider latency.
    If it flakes in CI, trim the few-shot block, lower `max_tokens`, or benchmark a
    faster model tier for short UI strings.

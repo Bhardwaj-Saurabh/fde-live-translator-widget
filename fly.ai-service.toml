@@ -1,0 +1,27 @@
+# Python AI service — PRIVATE app (flycast only, no public IPs).
+# Deploy from the assignment root:  fly deploy --config fly.ai-service.toml
+app = "saurabh-livetranslate-ai"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "backend/ai-service-python/Dockerfile"
+
+[env]
+  MODEL = "claude-sonnet-4-6"
+  TRANSLATION_DB_PATH = "/data/translations.db"
+
+[mounts]
+  source = "translations_data"
+  destination = "/data"
+
+# Reached only over the private network as http://saurabh-livetranslate-ai.flycast
+[http_service]
+  internal_port = 8000
+  force_https = false
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

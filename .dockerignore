@@ -1,0 +1,26 @@
+# never bake into an image
+.env
+**/.env
+*.db
+*.log
+
+# local junk
+.venv/
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+.git/
+.claude/
+
+# not needed at runtime
+docs/
+demo-pages/
+extension/
+loader/
+benchmark/
+eval/
+backend/ai-service-python/tests/
+backend/gateway-node/test/
+*.md
+PRODUCT_EVAL.md

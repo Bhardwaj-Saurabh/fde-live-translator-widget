@@ -8,8 +8,10 @@ __pycache__/
 .env
 *.db
 *.log
+*.out
 
 # eval/benchmark scratch output
 benchmark/_bench.json
+eval/_bench.json
 eval/report.json
 eval/REPORT.md

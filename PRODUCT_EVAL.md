@@ -1,24 +1,27 @@
 # Product Evaluation — Live Translate
 
 - **Student:** Saurabh Bhardwaj
-- **Date:** 2026-07-12
+- **Date:** 2026-07-13
 - **Video demo:** pending — to be recorded
-- **LLM provider / model:** Anthropic — `claude-sonnet-4-6`
+- **LLM provider / model:** OpenRouter — `anthropic/claude-haiku-4.5` (primary), Anthropic direct `claude-sonnet-4-6` (automatic fallback)
 - **Backend target:** `https://saurabh-livetranslate-gw.fly.dev` (Fly.io; AI service private via flycast, SQLite on persistent volume)
 
 ## Verdict
 
 > The backend is shippable: the full contract passes the automated rubric (70/70), the
-> two-tier cache is provably real (2.6 s cold miss → 3 ms hit, survives a restart via
-> SQLite), one request ID correlates a request across both services' logs, and the Hindi
-> output is style-verified against a researched guide (`docs/hindi-style-guide.md`) —
-> loan-noun + native-verb register, Devanagari-only, prices/SKUs/brands preserved
-> (8/8 live style tests). Both services are deployed to Fly.io (public gateway, private
-> AI service, persistent cache volume) with CI/CD: every push runs both test suites and
-> auto-deploys on green. The strongest part is the cache + observability story; the
-> weakest is that the in-browser live-website test has not been done yet, and cold-miss
-> p95 is borderline against the 3.5 s SLA (2.6–4.4 s across three runs, passing 2 of 3 —
-> it depends on provider latency).
+> two-tier cache is provably real (1.3 s cold miss → 2–7 ms hit, survives a restart via
+> SQLite — re-proven on this run with `db_hits: 1` in a fresh process), one request ID
+> correlates a request across both services' logs (re-proven: `reqcheck-haiku-777` in
+> both logs), and the Hindi output is style-verified against a researched guide
+> (`docs/hindi-style-guide.md`) — loan-noun + native-verb register, Devanagari-only,
+> prices/SKUs/brands preserved (8/8 live style tests re-run on the Haiku model,
+> zero provider fallbacks). Translations route through OpenRouter (Haiku 4.5, ~3×
+> cheaper than Sonnet) with Anthropic direct as an automatic fallback; if both
+> providers fail the service still fails loud (502, never English). Both services
+> are deployed to Fly.io with CI/CD: every push runs 37 Python + 14 gateway tests
+> and auto-deploys on green. Switching to Haiku also fixed the previously borderline
+> cold-miss p95: 1.68 s vs the 3.5 s SLA, comfortable. The only gap left is the
+> in-browser live-website test (+ the video), which needs a human browser session.
 
 **Rubric score (from `eval/report.json`):** 70 / 70 auto (+ 30 manual)
 
@@ -26,19 +29,22 @@
 
 | Metric | Result | SLA | Pass? |
 |---|---|---|---|
-| Cache hit p95 | 6.1 ms | ≤ 60 ms | ✅ |
-| Cache miss p95 | 2624 ms | ≤ 3500 ms | ✅ (borderline — 2973/4396/2624 ms over 3 cold runs; 1 outlier fail) |
+| Cache hit p95 | 7.3 ms | ≤ 60 ms | ✅ |
+| Cache miss p95 | 1682 ms | ≤ 3500 ms | ✅ (was 2.6–4.4 s borderline on Sonnet; Haiku made it comfortable) |
 | Cache hit rate | 75.0 % | ≥ 60 % | ✅ |
-| Throughput | 2017 req/s | ≥ 20 | ✅ |
+| Throughput | 1723 req/s | ≥ 20 | ✅ |
 | Error rate | 0.0 % | ≤ 1 % | ✅ |
-| Cost per miss | ~$0.003 (measured prompt: ~700–1000 input tokens × $3/MTok + output × $15/MTok) | — | — |
-| Monthly savings from cache | ~$1,150/mo (of ~$1,550 → ~$390 at 500k/mo, 75% hit rate) | — | — |
+| Cost per miss | ~$0.001 (real prompt: ~700–1000 input tokens × $1/MTok + output × $5/MTok, Haiku via OpenRouter) | — | — |
+| Monthly LLM spend @ 500k req/mo | ~$525 uncached → ~$131 with 75% hit rate (**~$394/mo saved by the cache**) | — | — |
 
-> **Cost note:** `bench.py` reports $0.000143/miss and $53.61/mo savings, but it estimates
-> tokens from the input text alone (~14 tokens). The real per-miss request carries the
-> style-guide system prompt + few-shot examples (~700–1000 input tokens), making true costs
-> ~20× higher. The relative saving is unchanged — the cache eliminates 75% of LLM spend —
-> and batching multiple strings per LLM call would amortize the prompt overhead further.
+> **Cost note:** `bench.py` reports $0.00015/miss but estimates tokens from the input text
+> alone (~14 tokens) at placeholder Sonnet prices. The real per-miss request carries the
+> style-guide system prompt + few-shot examples (~700–1000 input tokens). Two levers already
+> pulled: routing through OpenRouter to Haiku 4.5 cut per-token cost 3× vs Sonnet 4.6
+> (style quality re-verified: 8/8 live style tests on Haiku), and the cache eliminates 75%
+> of remaining spend. Next lever if needed: batch multiple strings per LLM call to amortize
+> the ~850-token prompt overhead (~10–30×), or `OPENROUTER_MODEL=google/gemini-2.5-flash`
+> (another ~3×, style re-verification required).
 
 ## 2. Live-website test
 
@@ -53,33 +59,33 @@
 - **Resilience:** pending
 - **Screenshots:** to be attached by the student
 
-### Sample translations (8 — real output captured from the running service via the gateway)
+### Sample translations (8 — real output from this run, Haiku 4.5 via OpenRouter through the gateway)
 
 | Original (EN) | Translation (hi-IN) | Numbers/prices/codes kept? | OK? |
 |---|---|---|---|
 | Good morning, welcome to our store! | सुप्रभात, हमारे स्टोर में आपका स्वागत है! | n/a | ✅ |
 | Add to cart | कार्ट में जोड़ें | n/a | ✅ canonical Amazon.in string, no terminal punctuation |
-| Shop the Home Depot summer sale today | आज ही Home Depot की समर सेल में खरीदारी करें | brand kept Latin | ✅ |
+| Shop the Home Depot summer sale today | आज Home Depot की गर्मी की सेल शॉप करें | brand kept Latin | ✅ |
 | Order 3 items for $49.99 and get 10% off. | 3 आइटम $49.99 में ऑर्डर करें और 10% छूट पाएं। | `3`, `$49.99`, `10%` ✓ | ✅ danda, no ₹-conversion |
-| Our team will contact you within two days. | हमारी टीम दो दिनों के भीतर आपसे संपर्क करेगी। | n/a | ✅ |
-| Free delivery on all orders this weekend. | इस वीकेंड सभी ऑर्डर पर मुफ़्त डिलीवरी। | n/a | ✅ loan-noun + native-word register |
-| Track your order status here | यहाँ अपना ऑर्डर स्टेटस ट्रैक करें | n/a | ✅ |
+| Our team will contact you within two days. | हमारी टीम आपसे दो दिन के अंदर संपर्क करेगी। | n/a | ✅ |
+| Free delivery on all orders this weekend. | इस सप्ताहांत सभी ऑर्डर पर मुफ़्त डिलीवरी। | n/a | ✅ loan-noun + native-word register |
+| Track your order status here | अपने ऑर्डर की स्थिति यहाँ ट्रैक करें | n/a | ✅ |
 | Reviews | समीक्षाएं | n/a | ✅ native word per style guide |
 
 ## 3. Dimension scorecard
 
 | Dimension | Pass / Partial / Fail | Evidence |
 |---|---|---|
-| Translation accuracy | Pass | 8 samples above; 8/8 live LLM tests green |
-| Hindi register (hi-IN) | Pass | style-guide-driven prompt; Devanagari ratio, करें register, danda rules all live-tested |
+| Translation accuracy | Pass | 8 samples above (Haiku); 8/8 live LLM tests green on the new model |
+| Hindi register (hi-IN) | Pass | style-guide-driven prompt; Devanagari ratio, करें register, danda rules all live-tested on Haiku, zero fallbacks |
 | Numbers / prices / codes preserved | Pass | `$49.99`, `10%`, model codes verbatim; no currency conversion |
 | Page coverage | **Pending** | needs the in-browser extension test |
-| Cache effectiveness | Pass | miss 2624 ms p95 → hit 6 ms p95 (~430×); survives restart (`db_hits: 1` in fresh process) |
-| Latency vs SLA | Pass (borderline) | `bench.py` exit 0; miss p95 varies 2.6–4.4 s across cold runs |
-| Error handling (no silent English) | Pass | fail-loud enforced: no try/except in `lib/llm.py`; tested — provider failure → 5xx, English never echoed, nothing cached |
+| Cache effectiveness | Pass | miss 1682 ms p95 → hit 7 ms p95 (229×); survives restart (`db_hits: 1` in fresh process, re-proven this run) |
+| Latency vs SLA | Pass | `bench.py` exit 0; miss p95 1.68 s vs 3.5 s SLA (Haiku removed the old Sonnet borderline) |
+| Error handling (no silent English) | Pass | fail-loud enforced through the provider chain: OpenRouter failure → Anthropic fallback; both fail → 502, English never echoed, nothing cached (`test_provider_routing.py`) |
 | Resilience on a real site | **Pending** | needs the in-browser extension test |
 | UX polish | **Pending** | widget provided; judge during the live test |
-| Trace correlation | Pass | id `reqcheck-321` in both `gateway.log` and `ai-service.log` |
+| Trace correlation | Pass | id `reqcheck-haiku-777` in both `gateway.log` and `ai-service.log` (re-proven this run) |
 
 ## 4. Top fixes before shipping
 
@@ -88,12 +94,11 @@
    60–90 s video at the same time.
 2. ~~Deploy both services to Fly.io~~ **Done** — gateway public at
    `https://saurabh-livetranslate-gw.fly.dev`, AI service flycast-only (verified
-   unreachable from the internet), cache volume mounted. Point the extension popup
-   at the public URL for the live test. Note: Anthropic account needs credits
-   topped up before deployed translations succeed.
-3. **Watch cold-miss p95** — it straddles the 3.5 s SLA depending on provider latency.
-   If it flakes in CI, trim the few-shot block, lower `max_tokens`, or benchmark a
-   faster model tier for short UI strings.
+   unreachable from the internet), cache volume mounted; deployed translations
+   verified working end-to-end (Haiku via OpenRouter, cache hits at 0 ms).
+3. ~~Watch cold-miss p95~~ **Resolved** — routing to Haiku 4.5 via OpenRouter cut
+   miss p95 from 2.6–4.4 s (borderline) to 1.68 s, comfortably inside the 3.5 s SLA,
+   while also cutting per-token cost 3×.
 
 ---
 

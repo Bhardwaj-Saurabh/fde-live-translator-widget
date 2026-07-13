@@ -408,7 +408,7 @@ Every FDE project is submitted as a **Product Evaluation + a video demo**.
 
 ## How I ran it
 
-- **LLM provider:** Anthropic — `claude-sonnet-4-6` (`MODEL` env), key in `backend/ai-service-python/.env` (`ANTHROPIC_API_KEY`). Provider stays swappable: the SDK is imported only inside `lib/llm.py`.
+- **LLM provider:** OpenRouter — `anthropic/claude-haiku-4.5` (`OPENROUTER_MODEL` env, ~3× cheaper than Sonnet) with automatic fallback to Anthropic direct — `claude-sonnet-4-6` (`MODEL` env). Keys in `backend/ai-service-python/.env` (`OPENROUTER_API_KEY`, `ANTHROPIC_API_KEY`); without an OpenRouter key it runs Anthropic-only. If both providers fail, the service returns 502 — never untranslated English. All provider code lives in `lib/llm.py`.
 - **Translation style:** the prompt in `backend/ai-service-python/lib/llm.py` is distilled from
   [`docs/hindi-style-guide.md`](docs/hindi-style-guide.md) — researched from high-traffic Hindi
   blogs (ShoutMeHindi, AchhiKhabar…), news portals (Aaj Tak, Amar Ujala), live Amazon.in/Flipkart
@@ -421,12 +421,12 @@ Every FDE project is submitted as a **Product Evaluation + a video demo**.
   cd backend/ai-service-python && ../../.venv/bin/uvicorn app:app --port 8000   # AI service
   cd backend/gateway-node && npm install && npm start                            # gateway :8787
   ```
-- **Tests:** `python -m pytest` in `backend/ai-service-python` (**32 passed**) and `npm test`
-  in `backend/gateway-node` (**14 passed**). Live LLM style tests:
-  `RUN_LIVE_LLM_TESTS=1 python -m pytest -m live` (**8 passed** — needs the API key).
+- **Tests:** `python -m pytest` in `backend/ai-service-python` (**37 passed** — incl. provider
+  routing/fallback) and `npm test` in `backend/gateway-node` (**14 passed**). Live LLM style tests:
+  `RUN_LIVE_LLM_TESTS=1 python -m pytest -m live` (**8 passed** on Haiku via OpenRouter — needs a key).
 - **Benchmark:** `python benchmark/bench.py` → **exit 0, all SLAs met**
-  (hit p95 **7 ms**, miss p95 2.97 s, hit rate 75%, 0 errors, 1,757 req/s warm — a cache hit is ~427× faster).
-- **Deploy:** both services on Fly.io — gateway `https://saurabh-livetranslate-gw.fly.dev` (public), AI service reachable only via private flycast; SQLite cache on a persistent volume (`/data`). Deploy with `fly deploy --config fly.ai-service.toml` / `fly deploy --config fly.gateway.toml` from the assignment root.
+  (hit p95 **7 ms**, miss p95 **1.68 s**, hit rate 75%, 0 errors, 1,723 req/s warm — a cache hit is ~229× faster).
+- **Deploy:** both services on Fly.io — gateway `https://saurabh-livetranslate-gw.fly.dev` (public), AI service reachable only via private flycast; SQLite cache on a persistent volume (`/data`). CI/CD (`.github/workflows/ci.yml`): every push runs both test suites + hygiene checks and auto-deploys `main` to Fly on green; pushing a `v*` tag also creates a GitHub Release.
 
 ---
 

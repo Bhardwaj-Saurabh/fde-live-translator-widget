@@ -13,10 +13,12 @@
 > SQLite), one request ID correlates a request across both services' logs, and the Hindi
 > output is style-verified against a researched guide (`docs/hindi-style-guide.md`) —
 > loan-noun + native-verb register, Devanagari-only, prices/SKUs/brands preserved
-> (8/8 live style tests). The strongest part is the cache + observability story; the
-> weakest is that the in-browser live-website test and the Fly.io deploy have not been
-> done yet, and cold-miss p95 is borderline against the 3.5 s SLA (2.6–4.4 s across
-> three runs, passing 2 of 3 — it depends on provider latency).
+> (8/8 live style tests). Both services are deployed to Fly.io (public gateway, private
+> AI service, persistent cache volume) with CI/CD: every push runs both test suites and
+> auto-deploys on green. The strongest part is the cache + observability story; the
+> weakest is that the in-browser live-website test has not been done yet, and cold-miss
+> p95 is borderline against the 3.5 s SLA (2.6–4.4 s across three runs, passing 2 of 3 —
+> it depends on provider latency).
 
 **Rubric score (from `eval/report.json`):** 70 / 70 auto (+ 30 manual)
 

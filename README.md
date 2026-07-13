@@ -1,4 +1,17 @@
-# Assignment 1 — Live Translate
+# 🌐 Live Translate — English → Hindi Web Page Translator
+
+[![CI/CD](https://github.com/Bhardwaj-Saurabh/fde-live-translator-widget/actions/workflows/ci.yml/badge.svg)](https://github.com/Bhardwaj-Saurabh/fde-live-translator-widget/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Bhardwaj-Saurabh/fde-live-translator-widget?logo=github)](https://github.com/Bhardwaj-Saurabh/fde-live-translator-widget/releases)
+[![Production](https://img.shields.io/github/deployments/Bhardwaj-Saurabh/fde-live-translator-widget/production?label=production&logo=flydotio)](https://saurabh-livetranslate-gw.fly.dev/health)
+[![Last commit](https://img.shields.io/github/last-commit/Bhardwaj-Saurabh/fde-live-translator-widget?logo=git&logoColor=white)](https://github.com/Bhardwaj-Saurabh/fde-live-translator-widget/commits/main)
+
+![Node.js](https://img.shields.io/badge/Node.js_22-Express-339933?logo=node.js&logoColor=white)
+![Python](https://img.shields.io/badge/Python_3.12-FastAPI-3776AB?logo=python&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-two--tier_cache-003B57?logo=sqlite&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude-Haiku_4.5-D97757?logo=anthropic&logoColor=white)
+![OpenRouter](https://img.shields.io/badge/OpenRouter-primary_provider-6566F1)
+![Chrome Extension](https://img.shields.io/badge/Chrome-Extension_MV3-4285F4?logo=googlechrome&logoColor=white)
+![Fly.io](https://img.shields.io/badge/Fly.io-deployed-8B5CF6?logo=flydotio&logoColor=white)
 
 > Ship a browser widget that translates any English web page into **Hindi**
 > in real time and on demand — then build the backend that powers it.

@@ -197,11 +197,29 @@ punctuation; `product` = commerce copy; `prose` = full sentences, danda.
 | 9 | ui | Sign in to see your saved items | अपने सेव किए आइटम देखने के लिए साइन इन करें |
 | 10 | prose | Compare prices before you buy — it only takes a minute. | खरीदने से पहले कीमतों की तुलना करें — इसमें बस एक मिनट लगता है। |
 
+The prompt carries a **trimmed subset** (#2, #4, #7 — one per tag) since every
+few-shot token rides on every cache miss; the full table remains the review
+reference. **Few-shot backfire warning:** a bare `Home → होम` example taught
+the model to transliterate "Home Depot" — single-word examples that prefix
+brand names don't belong in few-shot; encode that case as a *rule* (§6.1).
+
+### 6.1 Nav labels & mixed input (additions)
+
+- **Single-word nav labels take their website sense:** Home → होम,
+  Cart → कार्ट, About → हमारे बारे में. (Rule, not few-shot — see warning above.)
+- **Mixed Hindi/English input:** text already in Devanagari is kept verbatim;
+  only the English parts are translated. (Real pages served to Indian users
+  often arrive half-localized.)
+
 ## 10. Maintenance
 
 - **Prompt ↔ guide sync:** `_STYLE_BLOCKS["hi-IN"]` and `_FEW_SHOT["hi-IN"]`
   in `lib/llm.py` are distilled from §2–§9. Any change here must be
   reflected there (and vice versa), and the live style tests re-run.
+- **Token budget:** the distilled block + few-shot cost ~730 prompt tokens per
+  cache miss (measured via OpenRouter `usage`, 2026-07-13; was ~1140 before
+  compression). When adding rules, prefer editing/merging bullets over
+  appending, and re-measure.
 - **Cache staleness:** the cache key is `(text, target)` with no prompt
   version — after any prompt revision, delete `translations.db` (and restart)
   or old-style translations will keep being served.

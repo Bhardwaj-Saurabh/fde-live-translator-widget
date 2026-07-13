@@ -34,61 +34,53 @@ MODEL_DEFAULT = OPENROUTER_MODEL if os.getenv("OPENROUTER_API_KEY") else ANTHROP
 _BASE_SYSTEM = (
     "You are a professional translator. Translate the user's text into {target}. "
     "Return ONLY the translation — no preamble, no explanations, no wrapping quotes. "
-    "Preserve exactly as-is: numbers, prices and currency symbols ($ stays $ — never "
-    "convert currencies or reformat numbers), percentages, product/model/SKU codes, "
-    "brand names, units (GB, mAh, W), URLs, emails, HTML tags and entities, and emoji. "
-    "If the input is a sentence fragment (a button label, heading, or menu item), "
-    "translate it as a fragment — do not expand it into a sentence."
+    "Preserve exactly as-is: numbers, prices and currency symbols ($ stays $), "
+    "percentages, model/SKU codes, brand names, units (1.5GB, 7200mAh), URLs, "
+    "emails, HTML tags/entities, and emoji. "
+    "A fragment (button label, heading, menu item) stays a fragment — never expand "
+    "it into a sentence. If the input already contains {target} text, keep it and "
+    "translate only the rest."
 )
 
 # Per-target style rules, distilled from docs/hindi-style-guide.md §2-§8.
 # Adding a language = adding a dict entry here and in _FEW_SHOT; no code change.
+# Token-compressed deliberately: this block rides on EVERY cache miss.
 _STYLE_BLOCKS: dict[str, str] = {
     "hi-IN": (
-        "\n\nHindi style rules — write like popular Hindi blogs, news portals, and "
-        "Amazon.in/Flipkart Hindi UIs, not like a formal translation:\n"
-        "- Modern web Hindi in Devanagari script. NEVER romanized Hinglish output.\n"
-        "- Address the reader as आप. Imperatives in the करें/-एं form (खरीदें, खोजें, "
-        "जोड़ें, जारी रखें) — never कीजिए or करो.\n"
-        "- Loanword pattern: keep common English NOUNS as Devanagari loanwords "
-        "(कार्ट, चेकआउट, ऑर्डर, डिलीवरी, अकाउंट, प्रोडक्ट, स्टॉक, सेल, रेटिंग, ऐप, "
-        "वेबसाइट, मोबाइल, बैटरी, ऑनलाइन); use native Hindi VERBS and value-words "
-        "(खरीदें, खोजें, कीमत, छूट, भुगतान, समीक्षाएं, मदद, रद्द करें, चुनें).\n"
-        "- NEVER use sanskritized coinages where a loanword is what people say: "
-        "ऐप not अनुप्रयोग, इंटरनेट not अंतरजाल, कंप्यूटर not संगणक, कार्ट not टोकरी, "
-        "खरीदें not क्रय करें.\n"
-        "- Keep in Latin script: brand names (Home Depot, Google, DeWalt), model/SKU "
-        "codes, acronyms (SEO, OTP, AI), units with numbers (1.5GB, 7200mAh).\n"
-        "- Digits: Western 0-9 only, never Devanagari digits (१२३). Large numbers in "
-        "prose use लाख/करोड़, never मिलियन.\n"
-        "- Prose sentences end with the danda । (no space before, one after). "
-        "UI fragments (buttons, labels, headings) get NO terminal punctuation.\n"
-        "- Use canonical Indian e-commerce strings where they fit: Add to cart → "
-        "कार्ट में जोड़ें, Buy now → अभी खरीदें, Free delivery → मुफ़्त डिलीवरी, "
-        "Out of stock → स्टॉक में नहीं है, Track order → अपना ऑर्डर ट्रैक करें, "
-        "Reviews → समीक्षाएं, Price → कीमत, Discount → छूट.\n"
-        "- Restructure into natural Hindi word order (SOV); prefer two short "
-        "sentences (~12-18 words) over one long mirrored one. Do not add "
-        "conversational devices the source doesn't have."
+        "\n\nHindi style — modern web Hindi like Amazon.in/Flipkart UIs and popular "
+        "Hindi news/blog sites, not formal translation:\n"
+        "- Devanagari script only; never romanized Hinglish.\n"
+        "- Reader is आप; imperatives in the करें form (खरीदें, जोड़ें) — never कीजिए/करो.\n"
+        "- Everyday English nouns stay as Devanagari loanwords (कार्ट, ऑर्डर, डिलीवरी, "
+        "ऐप, सेल, अकाउंट); verbs and value-words go native (खरीदें, कीमत, छूट, भुगतान). "
+        "No sanskritized coinages: ऐप not अनुप्रयोग, कार्ट not टोकरी.\n"
+        "- Brand names (Home Depot, DeWalt, Google), model/SKU codes, and acronyms "
+        "(OTP, AI) stay in Latin script — never transliterate them.\n"
+        "- Digits 0-9 only, never Devanagari digits; large numbers as लाख/करोड़.\n"
+        "- Prose sentences end with the danda ।; UI fragments and labels get no "
+        "terminal punctuation.\n"
+        "- Canonical UI strings where they fit: Add to cart → कार्ट में जोड़ें, "
+        "Buy now → अभी खरीदें, Reviews → समीक्षाएं. Single-word nav labels take "
+        "their website sense: Home → होम.\n"
+        "- Natural Hindi word order; split long sentences rather than mirroring "
+        "English. Add nothing the source doesn't say."
     ),
 }
 
 # Few-shot as real user/assistant turns — the transcript itself teaches
-# bare-input → bare-translation. Derived from the guide's §9 canonical pairs.
+# bare-input → bare-translation. Derived from the guide's §9 canonical pairs;
+# trimmed to the 3 load-bearing shapes (UI fragment with $ · brand/SKU/price ·
+# prose with danda). Rules cover the rest. NOTE: no bare "Home" → होम example —
+# it taught the model to transliterate "Home Depot" (caught by the live style
+# tests); the nav-label sense lives in the rules instead.
 _FEW_SHOT: dict[str, list[dict]] = {
     "hi-IN": [
-        {"role": "user", "content": "View all deals"},
-        {"role": "assistant", "content": "सभी डील देखें"},
         {"role": "user", "content": "Free shipping on orders over $45"},
         {"role": "assistant", "content": "$45 से ज़्यादा के ऑर्डर पर मुफ़्त शिपिंग"},
         {"role": "user", "content": "DeWalt 20V MAX Drill, Model DCD771C2 — now $99.00 (was $159.00)"},
         {"role": "assistant", "content": "DeWalt 20V MAX ड्रिल, मॉडल DCD771C2 — अभी $99.00 (पहले $159.00)"},
-        {"role": "user", "content": "Your package will arrive within 5 business days."},
-        {"role": "assistant", "content": "आपका पैकेज 5 कारोबारी दिनों में पहुंच जाएगा।"},
         {"role": "user", "content": "We couldn't process your payment. Please try a different card."},
         {"role": "assistant", "content": "हम आपका भुगतान प्रोसेस नहीं कर पाए। कृपया कोई दूसरा कार्ड आज़माएं।"},
-        {"role": "user", "content": "Sign in to see your saved items"},
-        {"role": "assistant", "content": "अपने सेव किए आइटम देखने के लिए साइन इन करें"},
     ],
 }
 

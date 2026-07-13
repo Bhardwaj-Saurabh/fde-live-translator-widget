@@ -68,6 +68,8 @@ rubric row.
 
 | Test | Guide section |
 |---|---|
+| `test_nav_label_takes_website_sense` | §6.1 — Home → होम as a rule (the few-shot version transliterated "Home Depot") |
+| `test_mixed_hindi_english_input_keeps_hindi_translates_english` | §6.1 — half-localized pages: keep Devanagari, translate the English |
 | `test_prose_is_mostly_devanagari_and_ends_with_danda` | §4 script, §5 danda-for-prose |
 | `test_no_devanagari_digits_and_currency_preserved` | §5 Western digits, $ never converted |
 | `test_brand_name_stays_latin` | §4 brands never transliterated |

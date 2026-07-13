@@ -129,3 +129,20 @@ class TestLiveStyle:
 
         out = await translate_text("Choose a delivery location to continue")
         assert "कीजिए" not in out and "करो" not in out, f"wrong register: {out!r}"
+
+    async def test_nav_label_takes_website_sense(self):
+        # guide §6: single-word nav labels get their site-navigation meaning
+        from lib.llm import translate_text
+
+        out = (await translate_text("Home")).strip()
+        assert "होम" in out, f"nav label lost its website sense: {out!r}"
+        assert not out.endswith(("।", ".")), f"UI label got punctuation: {out!r}"
+
+    async def test_mixed_hindi_english_input_keeps_hindi_translates_english(self):
+        # base prompt: already-target-language text is kept, only the rest translated
+        from lib.llm import translate_text
+
+        out = await translate_text("आपका ऑर्डर ready है — track it here")
+        assert "आपका ऑर्डर" in out, f"existing Hindi was rewritten: {out!r}"
+        assert "ट्रैक" in out, f"English tail not translated: {out!r}"
+        assert "track it here" not in out.lower(), f"English left untranslated: {out!r}"

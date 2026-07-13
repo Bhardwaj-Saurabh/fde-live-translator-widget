@@ -34,7 +34,7 @@
 | Cache hit rate | 75.0 % | ≥ 60 % | ✅ |
 | Throughput | 1723 req/s | ≥ 20 | ✅ |
 | Error rate | 0.0 % | ≤ 1 % | ✅ |
-| Cost per miss | ~$0.001 (real prompt: ~700–1000 input tokens × $1/MTok + output × $5/MTok, Haiku via OpenRouter) | — | — |
+| Cost per miss | ~$0.0009 (measured: ~730 prompt tokens × $1/MTok + output × $5/MTok, Haiku via OpenRouter; was ~1140 tokens before prompt compression) | — | — |
 | Monthly LLM spend @ 500k req/mo | ~$525 uncached → ~$131 with 75% hit rate (**~$394/mo saved by the cache**) | — | — |
 
 > **Cost note:** `bench.py` reports $0.00015/miss but estimates tokens from the input text

@@ -1,0 +1,85 @@
+# CI/CD — test both services on every push/PR; deploy to Fly.io on main.
+#
+# CI needs no secrets: the Python suite mocks the LLM (live tests are excluded
+# by pytest.ini) and the gateway suite spawns its own stub AI service.
+# CD needs one repo secret: FLY_API_TOKEN (fly tokens create org -x 8760h).
+# Deploy steps skip silently until that secret is set.
+
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ai-service-tests:
+    name: AI service (pytest, mocked LLM)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/ai-service-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/ai-service-python/requirements*.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest
+
+  gateway-tests:
+    name: Gateway (node --test vs stub AI service)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/gateway-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: backend/gateway-node/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  hygiene:
+    name: Hygiene (no secrets / junk tracked)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No secrets or local artifacts in the tree
+        run: |
+          ! git ls-files | grep -E '(^|/)\.env$|\.db$|\.log$|node_modules/|\.venv/'
+          ! grep -rEn 'sk-ant-[A-Za-z0-9_-]{20,}' backend/ --include='*.py' --include='*.js'
+
+  deploy:
+    name: Deploy to Fly.io
+    needs: [ai-service-tests, gateway-tests, hygiene]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: fly-deploy   # never two deploys at once
+    env:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy AI service (private)
+        if: env.FLY_API_TOKEN != ''
+        run: flyctl deploy --config fly.ai-service.toml --remote-only
+      - name: Deploy gateway (public)
+        if: env.FLY_API_TOKEN != ''
+        run: flyctl deploy --config fly.gateway.toml --remote-only
+      - name: Smoke-test deployed gateway
+        if: env.FLY_API_TOKEN != ''
+        run: |
+          curl -sf https://saurabh-livetranslate-gw.fly.dev/health
+          echo
+          curl -s https://saurabh-livetranslate-gw.fly.dev/translate \
+            -H 'content-type: application/json' -d '{"nope":1}' \
+            -o /dev/null -w 'bad-input status: %{http_code}\n' | grep 400
+      - name: Skipped (FLY_API_TOKEN not set)
+        if: env.FLY_API_TOKEN == ''
+        run: echo "Set the FLY_API_TOKEN repo secret to enable auto-deploy."

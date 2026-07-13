@@ -8,13 +8,28 @@ docs/hindi-style-guide.md (the research source of truth) — when you change
 one, change both, then re-run the live style tests and clear translations.db
 (the cache key has no prompt version, so stale-style entries persist).
 
-FAIL LOUD: no try/except here. If the provider fails, the exception
-propagates so the caller returns a 502. Silently returning the untranslated
-input is an automatic fail (it ships English while looking healthy).
+PROVIDER ROUTING: when OPENROUTER_API_KEY is set, OpenRouter is the primary
+provider (cheaper per-token routing, e.g. Haiku at 1/3 the Sonnet price);
+Anthropic direct is the fallback. A fallback still translates — but if BOTH
+providers fail, the exception propagates so the caller returns a 502.
+Silently returning the untranslated input is an automatic fail (it ships
+English while looking healthy).
 """
 import os
 
-MODEL_DEFAULT = os.getenv("MODEL", "claude-sonnet-4-6")
+from dotenv import load_dotenv
+
+from lib.logger import get_logger
+
+load_dotenv()  # app.py imports this module before its own load_dotenv() runs
+
+log = get_logger("ai-service")
+
+ANTHROPIC_MODEL = os.getenv("MODEL", "claude-sonnet-4-6")
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "anthropic/claude-haiku-4.5")
+
+# What /health and responses report: the primary provider's model.
+MODEL_DEFAULT = OPENROUTER_MODEL if os.getenv("OPENROUTER_API_KEY") else ANTHROPIC_MODEL
 
 _BASE_SYSTEM = (
     "You are a professional translator. Translate the user's text into {target}. "
@@ -90,26 +105,66 @@ def _build_messages(text: str, target: str) -> tuple[str, list[dict]]:
     return system, messages
 
 
-_client = None
+# Clients are created per call, not cached globally: an async HTTP client is
+# bound to the event loop it was created on, and a cached one breaks with
+# "Event loop is closed" outside a single long-lived loop. Connection setup
+# is noise next to a 1-3 s LLM call.
 
 
-def _get_client():
-    global _client
-    if _client is None:
-        from anthropic import AsyncAnthropic  # the only provider import in the repo
+async def _anthropic_call(model: str, system: str, messages: list[dict]) -> str:
+    from anthropic import AsyncAnthropic  # lazy: provider SDKs load only when used
 
-        _client = AsyncAnthropic()  # reads ANTHROPIC_API_KEY from the environment
-    return _client
+    async with AsyncAnthropic() as client:  # reads ANTHROPIC_API_KEY from the environment
+        msg = await client.messages.create(
+            model=model,
+            max_tokens=1024,
+            system=system,
+            messages=messages,
+        )
+    return "".join(block.text for block in msg.content if block.type == "text")
 
 
-async def translate_text(text: str, target: str = "hi-IN", model: str = MODEL_DEFAULT) -> str:
-    """Return `text` translated into `target` (Hindi by default)."""
+async def _openrouter_call(model: str, system: str, messages: list[dict]) -> str:
+    import httpx  # lazy, same policy as the anthropic import
+
+    async with httpx.AsyncClient(
+        base_url="https://openrouter.ai/api/v1",
+        headers={"Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}"},
+        timeout=30.0,
+    ) as client:
+        resp = await client.post(
+            "/chat/completions",
+            json={
+                "model": model,
+                "max_tokens": 1024,
+                "messages": [{"role": "system", "content": system}, *messages],
+            },
+        )
+    resp.raise_for_status()
+    out = resp.json()["choices"][0]["message"]["content"]
+    if not out or not out.strip():
+        raise RuntimeError("OpenRouter returned an empty translation")
+    return out
+
+
+async def translate_text(text: str, target: str = "hi-IN", model: str | None = None) -> str:
+    """Return `text` translated into `target` (Hindi by default).
+
+    OpenRouter first when its key is set; Anthropic direct as fallback. The
+    fallback is the ONLY caught failure — if Anthropic also fails, it raises.
+    """
     system, messages = _build_messages(text, target)
-    msg = await _get_client().messages.create(
-        model=model,
-        max_tokens=1024,
-        system=system,
-        messages=messages,
-    )
-    out = "".join(block.text for block in msg.content if block.type == "text").strip()
-    return out.strip(_WRAPPING_QUOTES).strip()
+    out = None
+    if os.getenv("OPENROUTER_API_KEY"):
+        try:
+            out = await _openrouter_call(model or OPENROUTER_MODEL, system, messages)
+        except Exception as exc:
+            log.warning(
+                "openrouter_failed_falling_back",
+                extra={"error": f"{type(exc).__name__}: {exc}", "model": model or OPENROUTER_MODEL},
+            )
+    if out is None:
+        # an explicit OpenRouter slug ("vendor/model") can't be sent to Anthropic
+        anthropic_model = model if model and "/" not in model else ANTHROPIC_MODEL
+        out = await _anthropic_call(anthropic_model, system, messages)
+    return out.strip().strip(_WRAPPING_QUOTES).strip()

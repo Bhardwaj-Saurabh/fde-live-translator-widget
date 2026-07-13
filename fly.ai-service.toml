@@ -7,6 +7,9 @@ primary_region = "lhr"
   dockerfile = "backend/ai-service-python/Dockerfile"
 
 [env]
+  # primary: OpenRouter (key set via `fly secrets set OPENROUTER_API_KEY=…`);
+  # fallback: Anthropic direct with MODEL (ANTHROPIC_API_KEY secret)
+  OPENROUTER_MODEL = "anthropic/claude-haiku-4.5"
   MODEL = "claude-sonnet-4-6"
   TRANSLATION_DB_PATH = "/data/translations.db"
 

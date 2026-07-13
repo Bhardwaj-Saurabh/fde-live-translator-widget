@@ -3,7 +3,8 @@ uvicorn[standard]==0.30.6
 python-dotenv==1.0.1
 aiosqlite==0.20.0
 
-# --- pick ONE LLM provider (uncomment what you use) ---
+# --- providers: OpenRouter (primary, via httpx) with Anthropic fallback ---
 anthropic==0.116.0
+httpx==0.28.1
 # google-genai==0.8.0
 # openai==1.51.0

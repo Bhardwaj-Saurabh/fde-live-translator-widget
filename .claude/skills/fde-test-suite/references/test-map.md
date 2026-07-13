@@ -41,6 +41,16 @@ rubric row.
 | `test_unknown_target_gets_generic_prompt_no_few_shot` | open-closed: new language = data only |
 | `test_provider_sdk_not_imported_at_module_import_time` | mocked suite/CI never needs the SDK or a key |
 
+## Python: tests/test_provider_routing.py (fast — providers mocked at the seam)
+
+| Test | Requirement |
+|---|---|
+| `test_openrouter_used_when_key_set` | OpenRouter is the primary provider when `OPENROUTER_API_KEY` is set |
+| `test_falls_back_to_anthropic_when_openrouter_fails` | provider failure degrades to Anthropic direct, still translating |
+| `test_both_providers_failing_raises_never_returns_english` | **automatic-fail rule** survives the fallback chain |
+| `test_anthropic_direct_when_no_openrouter_key` | no OpenRouter key = single-provider behavior unchanged |
+| `test_wrapping_quotes_stripped_regardless_of_provider` | output cleanup is provider-agnostic |
+
 ## Python: tests/test_user_outcomes.py::TestLiveStyle (live — style adherence)
 
 | Test | Guide section |

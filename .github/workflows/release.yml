@@ -1,0 +1,26 @@
+# Pushing a v* tag (git tag v1.2.0 && git push origin v1.2.0) creates a
+# GitHub Release with auto-generated notes. Tags point at commits that
+# already passed CI on main, so tests are not repeated here.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the release with the workflow's own token
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release from tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag

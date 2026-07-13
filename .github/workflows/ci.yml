@@ -4,16 +4,24 @@
 # by pytest.ini) and the gateway suite spawns its own stub AI service.
 # CD needs one repo secret: FLY_API_TOKEN (fly tokens create org -x 8760h).
 # Deploy steps skip silently until that secret is set.
-# Pushing a v* tag (git tag v1.2.0 && git push origin v1.2.0) additionally
-# creates a GitHub Release with auto-generated notes.
+# Docs-only pushes (*.md, docs/, screenshots) skip the pipeline entirely —
+# no reason to restart production for a README edit.
+# Releases: see release.yml (triggered by v* tags).
 
 name: CI/CD
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "screenshots/**"
   pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "screenshots/**"
 
 jobs:
   ai-service-tests:
@@ -86,21 +94,3 @@ jobs:
       - name: Skipped (FLY_API_TOKEN not set)
         if: env.FLY_API_TOKEN == ''
         run: echo "Set the FLY_API_TOKEN repo secret to enable auto-deploy."
-
-  release:
-    name: GitHub Release
-    needs: [ai-service-tests, gateway-tests, hygiene]
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write   # create the release with the workflow's own token
-    steps:
-      - uses: actions/checkout@v4
-      - name: Create release from tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            --verify-tag

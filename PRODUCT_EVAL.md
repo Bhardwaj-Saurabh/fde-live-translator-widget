@@ -100,6 +100,28 @@
    miss p95 from 2.6–4.4 s (borderline) to 1.68 s, comfortably inside the 3.5 s SLA,
    while also cutting per-token cost 3×.
 
+## 5. At-scale study — chunked LLM batching (prototyped, deliberately not merged)
+
+Each cache miss currently pays the ~730-token style prompt individually. A standalone
+prototype (real OpenRouter calls, product code untouched) measured whether batching
+strings into shared LLM calls is worth it — same 40-string Home Depot-style workload,
+3–4 trials per design:
+
+| Design | Cold-batch latency | Cost / 40 misses | Reliability |
+|---|---|---|---|
+| Current — 1 call/string, 32 concurrent | 4.5 s | $0.0343 | misalignment impossible |
+| Full batch — 40 strings in one call | 6.8 s ❌ | $0.0055 | **1 silent misalignment in 160** |
+| **Chunked k=10 — 4 parallel calls of 10** | **3.2 s** | **$0.0075 (4.6×)** | 0 errors, 3/3 parses |
+
+Findings: full batching is *slower* (output tokens generate serially) and its failure
+mode is silent wrong-string assignment, not parse errors; small parallel chunks avoid
+both. Adopting k=10 would make cold pages ~29% faster and cut miss cost 4.6×
+(~$131/mo → ~$29/mo at 500K req/mo, 75% hit rate) with per-chunk validation falling
+back to the proven per-string path. **Not merged**: every SLA already passes with wide
+margin at current traffic, and the added moving parts only earn their maintenance cost
+once miss volume makes the delta real. Full write-up in `README.md` → "Future
+enhancement at scale".
+
 ---
 
 **Red-line checks:** ✅ no secrets committed (`.env` gitignored; key placeholder restored in

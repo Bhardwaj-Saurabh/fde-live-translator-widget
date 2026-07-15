@@ -11,6 +11,8 @@ primary_region = "lhr"
   # fallback: Anthropic direct with MODEL (ANTHROPIC_API_KEY secret)
   OPENROUTER_MODEL = "anthropic/claude-haiku-4.5"
   MODEL = "claude-sonnet-4-6"
+  # widget sends 40-string batches; 32 concurrent LLM calls ≈ 2 rounds/batch
+  BATCH_CONCURRENCY = "32"
   TRANSLATION_DB_PATH = "/data/translations.db"
 
 [mounts]

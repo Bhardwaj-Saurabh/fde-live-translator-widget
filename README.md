@@ -434,9 +434,10 @@ Every FDE project is submitted as a **Product Evaluation + a video demo**.
   cd backend/ai-service-python && ../../.venv/bin/uvicorn app:app --port 8000   # AI service
   cd backend/gateway-node && npm install && npm start                            # gateway :8787
   ```
-- **Tests:** `python -m pytest` in `backend/ai-service-python` (**37 passed** — incl. provider
-  routing/fallback) and `npm test` in `backend/gateway-node` (**14 passed**). Live LLM style tests:
-  `RUN_LIVE_LLM_TESTS=1 python -m pytest -m live` (**8 passed** on Haiku via OpenRouter — needs a key).
+- **Tests:** `python -m pytest` in `backend/ai-service-python` (**46 passed** — incl. provider
+  routing/fallback, cache TTL, clear-cache auth) and `npm test` in `backend/gateway-node`
+  (**20 passed** — incl. rate limiting, admin relay). Live LLM style tests:
+  `RUN_LIVE_LLM_TESTS=1 python -m pytest -m live` (**10 passed** on Haiku via OpenRouter — needs a key).
 - **Benchmark:** `python benchmark/bench.py` → **exit 0, all SLAs met**
   (hit p95 **7 ms**, miss p95 **1.68 s**, hit rate 75%, 0 errors, 1,723 req/s warm — a cache hit is ~229× faster).
 - **Run with Docker:** `docker compose up --build` (needs `backend/ai-service-python/.env` with your
@@ -448,6 +449,66 @@ Every FDE project is submitted as a **Product Evaluation + a video demo**.
   `curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" https://saurabh-livetranslate-gw.fly.dev/admin/clear-cache`
   (`ADMIN_TOKEN` is a Fly secret on the AI service; without it the endpoint is disabled).
 - **Deploy:** both services on Fly.io — gateway `https://saurabh-livetranslate-gw.fly.dev` (public), AI service reachable only via private flycast; SQLite cache on a persistent volume (`/data`). CI/CD (`.github/workflows/ci.yml`): every push runs both test suites + hygiene checks and auto-deploys `main` to Fly on green; pushing a `v*` tag also creates a GitHub Release.
+
+---
+
+## Future enhancement at scale: chunked LLM batching (prototyped, not merged)
+
+### The limitation today
+
+The widget sends the page as sequential HTTP batches of 40 strings, and the AI service
+translates **each string with its own LLM call** (32 concurrent). That design is simple and
+alignment-safe, but it has one structural cost: the ~730-token Hindi style prompt is paid **once
+per string**. On a cold 200-string page that is 200 prompts ≈ 146K input tokens for ~5K tokens of
+actual content — roughly **$0.034 per 40-string batch**, and ~4.5 s per batch (~22 s per cold
+page). At demo volume this is pennies; at 500K requests/month it is the dominant LLM cost
+(~$131/mo at a 75% hit rate).
+
+### The study (standalone prototype, real OpenRouter calls — no product code changed)
+
+Three designs were measured on the same realistic 40-string Home Depot-style workload
+(UI fragments, prices/SKUs/brands, prose, parser stressors), 3–4 trials each, Haiku 4.5:
+
+| Design | Cold-batch latency | Cost / 40 misses | Reliability |
+|---|---|---|---|
+| **Current** — 1 call per string, 32 concurrent | 4.5 s | $0.0343 | no parsing → misalignment impossible |
+| **Full batch** — all 40 strings in ONE call | 6.8 s ❌ | $0.0055 (6.2×) | JSON parsed 4/4, but **1 silent misalignment in 160 strings** |
+| **Chunked k=10** — 4 calls of 10, in parallel | **3.2 s** ✅ | **$0.0075 (4.6×)** | 3/3 parses, **0 alignment errors** |
+| Chunked k=5 — 8 calls of 5, in parallel | 2.5 s | $0.0099 (3.5×) | 3/3 parses, 0 alignment errors |
+
+Two non-obvious findings:
+
+1. **Full batching is *slower*, not faster.** LLM output tokens generate serially — one call
+   emitting ~900 tokens of Hindi takes ~6.8 s, while 40 small calls parallelize generation.
+   Amortizing the prompt saves money, not time.
+2. **The real risk of batching is silent misalignment, not parse failure.** JSON parsing never
+   failed, but in one full-batch trial the model assigned string #28's translation the content of
+   string #6 — the page would render wrong Hindi with no error anywhere. The risk shrinks with
+   chunk size: k=10 and k=5 showed zero misalignments.
+
+### How to overcome it (the k=10 design)
+
+- Split each 40-string widget batch into chunks of 10; translate the chunks **in parallel**, each
+  as one LLM call carrying a JSON array in / JSON array out protocol.
+- Only **cache misses** enter chunks — hits keep being served from the two-tier cache per string,
+  and each translated string is still cached individually (cache key unchanged, per contract).
+- Guardrails, in keeping with the fail-loud rule: validate every chunk response is a JSON array of
+  exactly K strings; on any parse/validation failure, **fall back to the proven per-string path for
+  that chunk** (never echo English, never guess alignment). Re-run the live style suite, since
+  batched context can shift register.
+
+### Expected outcome
+
+- **Latency:** ~4.5 s → ~3.2 s per cold batch (**~29% faster**; a cold 200-string page ~22 s → ~16 s).
+  The remaining ceiling is the widget's sequential batch loop, which is provided code.
+- **Cost:** ~$0.034 → ~$0.0075 per 40 misses (**4.6× cheaper**; at 500K req/mo and 75% hit rate,
+  ~$131/mo → ~$29/mo). Cache hits — the majority of traffic — are unaffected either way.
+- **Quality/safety:** unchanged by construction — same prompt rules, per-chunk validation, and a
+  per-string fallback path; the live style tests remain the regression gate.
+
+Deliberately **not merged yet**: at current traffic the SLA gate already passes with wide margin,
+and the extra moving parts (chunk assembly, response validation, fallback path) are only worth
+their maintenance cost once miss volume makes the $/month delta real.
 
 ---
 

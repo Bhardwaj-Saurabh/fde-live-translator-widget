@@ -1,6 +1,6 @@
 /* FDE · Assignment 1 · Extension popup  (PROVIDED) */
 const $ = (id) => document.getElementById(id);
-const DEFAULT_URL = "http://localhost:8787";
+const DEFAULT_URL = "https://saurabh-livetranslate-gw.fly.dev";
 
 function setStatus(text, kind) {
   const s = $("status");

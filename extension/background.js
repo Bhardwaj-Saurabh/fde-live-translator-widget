@@ -4,13 +4,13 @@
  * Relays the widget's API calls out of the page context. Content-script
  * fetches are subject to the host page's CSP, CORS, and Chrome's
  * private-network-access rules — which is exactly what blocks a direct
- * call to http://localhost:8787 from a strict site like homedepot.com.
+ * call to https://saurabh-livetranslate-gw.fly.dev from a strict site like homedepot.com.
  * Fetches made HERE run with the extension's host_permissions and are
  * exempt from all three.
  */
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || msg.type !== "FDE_FETCH") return;
-  chrome.storage.sync.get({ apiUrl: "http://localhost:8787" }, async (cfg) => {
+  chrome.storage.sync.get({ apiUrl: "https://saurabh-livetranslate-gw.fly.dev" }, async (cfg) => {
     try {
       const res = await fetch(cfg.apiUrl + msg.path, {
         method: "POST",

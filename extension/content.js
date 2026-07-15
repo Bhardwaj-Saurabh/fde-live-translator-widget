@@ -10,7 +10,7 @@
  */
 (function () {
   try {
-    chrome.storage.sync.get({ apiUrl: "http://localhost:8787" }, (cfg) => {
+    chrome.storage.sync.get({ apiUrl: "https://saurabh-livetranslate-gw.fly.dev" }, (cfg) => {
       window.FDE_CONFIG = Object.assign({}, window.FDE_CONFIG, { API_URL: cfg.apiUrl });
     });
   } catch (_) {
